@@ -59,6 +59,11 @@
 ## Step 15: Translate all file contents to English
 - Converted MANUAL.md, HISTORY.md, and all skill files from Japanese to English
 
+## Step 16: Vectorize solvers for performance
+- ImplicitFDM: vectorized tridiagonal construction, precompute geometric factors, preallocate arrays (~2.6x speedup)
+- CosineSpectral: matrix-vector forward/inverse transform, precompute decay/weights/norms, vectorized nonlinear flux (~23x speedup)
+- Thomas algorithm: use np.empty instead of np.zeros, reduce redundant division
+
 ## Bug fixes
 - Fixed spectral solver instability: switched from 1/(1+dt*lam) to exp(-lam*dt) decay
 - Fixed zero_crossings test expectation (4 crossings, not 6)

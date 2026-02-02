@@ -27,49 +27,61 @@ class CosineSpectral(SolverBase):
         T_history[0] = T0.copy()
         T = T0.copy()
         dr = r[1] - r[0]
+        dr2 = dr * dr
 
         N = min(self.n_modes, nr // 2)
         ks = np.arange(N)
         lam = ((ks + 0.5) * np.pi) ** 2
 
-        # Basis matrix: phi[k, j] = cos((k+0.5)*pi*r_j)
-        phi = np.cos(np.outer((ks + 0.5) * np.pi, r))  # (N, nr)
+        # Basis matrix: phi[k, j] = cos((k+0.5)*pi*r_j), shape (N, nr)
+        phi = np.cos(np.outer((ks + 0.5) * np.pi, r))
 
-        # Use proper L2 inner product via trapezoidal rule
-        # <phi_k, phi_l> = int_0^1 cos((k+0.5)*pi*r) cos((l+0.5)*pi*r) dr = 0.5 delta_kl
-        # Numerically:
-        phi_norm = np.zeros(N)
-        for k in range(N):
-            phi_norm[k] = np.trapz(phi[k] ** 2, r)
+        # Precompute norms via trapezoidal rule (vectorized)
+        # trapz(f, r) with uniform spacing = dr * (0.5*f[0] + f[1] + ... + f[-2] + 0.5*f[-1])
+        phi_sq = phi ** 2  # (N, nr)
+        phi_norm = np.trapz(phi_sq, r, axis=1)  # (N,)
+
+        # Precompute weights for forward transform: phi * trapz_weight / norm
+        # For trapz: weight = dr everywhere, except dr/2 at endpoints
+        w = np.full(nr, dr)
+        w[0] = 0.5 * dr
+        w[-1] = 0.5 * dr
+        phi_w = phi * w[np.newaxis, :]  # (N, nr) weighted basis
+        phi_w_norm = phi_w / phi_norm[:, np.newaxis]  # (N, nr)
+
+        # Precompute exponential decay factor (constant across time steps)
+        decay = np.exp(-lam * dt)  # (N,)
+
+        # Precompute geometric factors for nonlinear flux (interior points)
+        ri = r[1:-1]
+        rp = ri + 0.5 * dr
+        rm = ri - 0.5 * dr
+        inv_ri_dr2 = 1.0 / (ri * dr2)
 
         for n in range(nt):
-            # Forward transform: a_k = <T, phi_k> / <phi_k, phi_k>
-            a = np.zeros(N)
-            for k in range(N):
-                a[k] = np.trapz(T * phi[k], r) / phi_norm[k]
+            # Forward transform: a = phi_w_norm @ T (matrix-vector multiply)
+            a = phi_w_norm @ T  # (N,)
 
-            # Decay each mode: implicit linear diffusion
-            # dT/dt = d²T/dr² for chi=1 has eigenvalue -lam_k for phi_k
-            a_new = a * np.exp(-lam * dt)
+            # Decay each mode
+            a *= decay
 
-            # Reconstruct in physical space
-            T = np.dot(a_new, phi)
+            # Reconstruct: T = phi^T @ a
+            T = phi.T @ a  # (nr,)
 
-            # Nonlinear correction (explicit, operator splitting)
+            # Nonlinear correction (vectorized)
             if alpha > 0:
-                dTdr = np.zeros(nr)
-                dTdr[1:-1] = (T[2:] - T[:-2]) / (2 * dr)
-                chi_nl = alpha * np.abs(dTdr)  # chi - 1
+                dTdr = np.empty(nr)
+                dTdr[0] = 0.0
+                dTdr[1:-1] = (T[2:] - T[:-2]) / (2.0 * dr)
+                dTdr[-1] = (T[-1] - T[-2]) / dr
+                chi_nl = alpha * np.abs(dTdr)
+
+                cnp = 0.5 * (chi_nl[1:-1] + chi_nl[2:])
+                cnm = 0.5 * (chi_nl[1:-1] + chi_nl[:-2])
 
                 nl_flux = np.zeros(nr)
-                for i in range(1, nr - 1):
-                    ri = r[i]
-                    cnp = 0.5 * (chi_nl[i] + chi_nl[i + 1])
-                    cnm = 0.5 * (chi_nl[i] + chi_nl[i - 1])
-                    rp = ri + 0.5 * dr
-                    rm = ri - 0.5 * dr
-                    nl_flux[i] = (rp * cnp * (T[i + 1] - T[i]) - rm * cnm * (T[i] - T[i - 1])) / (ri * dr**2)
-                nl_flux[0] = 2.0 * chi_nl[0] * (T[1] - T[0]) / dr**2
+                nl_flux[1:-1] = (rp * cnp * (T[2:] - T[1:-1]) - rm * cnm * (T[1:-1] - T[:-2])) * inv_ri_dr2
+                nl_flux[0] = 2.0 * chi_nl[0] * (T[1] - T[0]) / dr2
 
                 T = T + dt * nl_flux
 
