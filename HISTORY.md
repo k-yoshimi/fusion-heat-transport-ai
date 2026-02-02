@@ -44,6 +44,10 @@
 - Spectral solver stable but less accurate (limited modes, Cartesian basis in cylindrical geometry)
 - PINN stub returns NaN (no PyTorch installed)
 
+## Step 13: docs/MANUAL.md — 日本語実行マニュアル
+- リファレンス解の生成方法の詳細解説
+- CLI引数、出力ファイル、誤差定義、PDE解説
+
 ## Bug fixes
 - Fixed spectral solver instability: switched from 1/(1+dt*lam) to exp(-lam*dt) decay
 - Fixed zero_crossings test expectation (4 crossings, not 6)
