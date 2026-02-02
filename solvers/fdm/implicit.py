@@ -1,6 +1,7 @@
 """Implicit Crank-Nicolson FDM solver for radial heat transport."""
 
 import numpy as np
+from scipy.linalg import solve_banded
 from solvers.base import SolverBase
 
 
@@ -30,14 +31,12 @@ class ImplicitFDM(SolverBase):
         rm = ri - 0.5 * dr                   # r at i-1/2
         inv_ri_dr2 = 1.0 / (ri * dr2)        # 1/(r_i * dr^2)
 
-        # Preallocate tridiagonal arrays
-        a = np.zeros(nr)
-        b = np.zeros(nr)
-        c = np.zeros(nr)
+        # Banded matrix layout for solve_banded((1, 1), ab, d):
+        #   ab[0, j] = A[j-1, j]  (super-diagonal, c[j-1])
+        #   ab[1, j] = A[j, j]    (diagonal, b[j])
+        #   ab[2, j] = A[j+1, j]  (sub-diagonal, a[j+1])
+        ab = np.zeros((3, nr))
         d = np.zeros(nr)
-
-        # Dirichlet BC at r=1 (constant across time steps)
-        b[-1] = 1.0
 
         for n in range(nt):
             # Gradient via central differences (vectorized)
@@ -47,56 +46,38 @@ class ImplicitFDM(SolverBase):
             dTdr[-1] = (T[-1] - T[-2]) / dr
             chi = self.chi(dTdr, alpha)
 
-            # Interior points: vectorized tridiagonal construction
+            # Interior points i=1..nr-2 (vectorized)
             chi_ip = 0.5 * (chi[1:-1] + chi[2:])    # chi at i+1/2
             chi_im = 0.5 * (chi[1:-1] + chi[:-2])    # chi at i-1/2
 
             Ap = rp * chi_ip * inv_ri_dr2
             Am = rm * chi_im * inv_ri_dr2
 
-            # Explicit RHS
+            # RHS
             d[1:-1] = T[1:-1] + half_dt * (Ap * (T[2:] - T[1:-1]) - Am * (T[1:-1] - T[:-2]))
 
-            # Implicit coefficients
-            a[1:-1] = -half_dt * Am
-            b[1:-1] = 1.0 + half_dt * (Ap + Am)
-            c[1:-1] = -half_dt * Ap
+            # Diagonal b[i] -> ab[1, i]
+            ab[1, 1:-1] = 1.0 + half_dt * (Ap + Am)
+            # Super-diagonal c[i] -> ab[0, i+1]  (c[i] = -half_dt * Ap[i-1])
+            ab[0, 2:nr - 1] = -half_dt * Ap[:-1]
+            # Sub-diagonal a[i] -> ab[2, i-1]  (a[i] = -half_dt * Am[i-1])
+            ab[2, 0:nr - 2] = -half_dt * Am
 
-            # r=0: L'Hôpital → 2χ d²T/dr²
+            # r=0 (i=0): L'Hopital -> 2 chi d^2T/dr^2
             coeff = 2.0 * chi[0] / dr2
             rhs0 = 2.0 * coeff * (T[1] - T[0])
             d[0] = T[0] + half_dt * rhs0
-            a[0] = 0.0
-            b[0] = 1.0 + dt * coeff
-            c[0] = -dt * coeff
+            ab[1, 0] = 1.0 + dt * coeff       # b[0]
+            ab[0, 1] = -dt * coeff             # c[0] -> ab[0, 1]
 
-            # r=1: Dirichlet T=0 (a[-1], b[-1], c[-1], d[-1] stay 0/1/0/0)
+            # r=1 (i=nr-1): Dirichlet T=0
             d[-1] = 0.0
+            ab[1, -1] = 1.0                    # b[nr-1]
+            ab[0, -1] = 0.0                    # no super-diag at last col
+            ab[2, -2] = 0.0                    # a[nr-1] -> ab[2, nr-2]
 
-            # Thomas algorithm (in-place)
-            T = _thomas(a, b, c, d)
+            # Solve banded system (LAPACK dgbsv)
+            T = solve_banded((1, 1), ab, d, overwrite_ab=False, overwrite_b=False)
             T_history[n + 1] = T
 
         return T_history
-
-
-def _thomas(a, b, c, d):
-    """Solve tridiagonal system using Thomas algorithm."""
-    n = len(d)
-    c_ = np.empty(n)
-    d_ = np.empty(n)
-
-    c_[0] = c[0] / b[0]
-    d_[0] = d[0] / b[0]
-
-    for i in range(1, n):
-        denom = b[i] - a[i] * c_[i - 1]
-        c_[i] = c[i] / denom
-        d_[i] = (d[i] - a[i] * d_[i - 1]) / denom
-
-    x = np.empty(n)
-    x[-1] = d_[-1]
-    for i in range(n - 2, -1, -1):
-        x[i] = d_[i] - c_[i] * x[i + 1]
-
-    return x

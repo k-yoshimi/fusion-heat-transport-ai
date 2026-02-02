@@ -64,6 +64,12 @@
 - CosineSpectral: matrix-vector forward/inverse transform, precompute decay/weights/norms, vectorized nonlinear flux (~23x speedup)
 - Thomas algorithm: use np.empty instead of np.zeros, reduce redundant division
 
+## Step 17: Replace Thomas algorithm with scipy.linalg.solve_banded
+- Replaced Python-loop Thomas algorithm with LAPACK dgbsv via solve_banded
+- Added scipy>=1.10 to pyproject.toml dependencies
+- ImplicitFDM: 0.005s -> 0.002s (~2.5x additional speedup)
+- Total speedup from original: ~6.5x
+
 ## Bug fixes
 - Fixed spectral solver instability: switched from 1/(1+dt*lam) to exp(-lam*dt) decay
 - Fixed zero_crossings test expectation (4 crossings, not 6)
