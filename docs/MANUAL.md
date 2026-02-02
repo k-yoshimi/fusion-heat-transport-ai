@@ -125,6 +125,8 @@ Worst-case pointwise error across the entire domain.
 
 ## 5. Solver Selection Policy
 
+### Post-hoc selection (default)
+
 ```
 score = L2_error + lambda * wall_time
 ```
@@ -134,6 +136,128 @@ score = L2_error + lambda * wall_time
 - `lambda = 0.0`: pure accuracy selection
 
 Configurable in `policy/select.py` via `select_best()`.
+
+### ML-based selection
+
+A decision tree model can predict the best solver **before** running all solvers, based only on problem parameters and initial condition features. This avoids redundant computation.
+
+#### Workflow
+
+```
+1. Generate training data  →  2. Train model  →  3. Predict & run one solver
+```
+
+#### Step 1: Generate training data
+
+Run a parameter sweep over multiple alpha, grid size, time step, initial condition combinations. All three solvers are benchmarked for each combination, and the best solver (by score) is labeled.
+
+```bash
+# Full sweep (~432 instances, may take several minutes)
+python -m app.run_benchmark --generate-data
+
+# Data saved to data/training_data.csv
+```
+
+The sweep covers:
+- `alpha`: 0.0, 0.1, 0.2, 0.5, 0.8, 1.0, 1.5, 2.0
+- `init`: gaussian, sharp
+- `nr`: 31, 51, 71
+- `dt`: 0.0005, 0.001, 0.002
+- `t_end`: 0.05, 0.1, 0.2
+
+#### Step 2: Train the model
+
+```bash
+python -m policy.train --data data/training_data.csv --model data/solver_model.npz
+
+# Or generate + train in one command
+python -m policy.train --generate
+
+# Makefile shortcut
+make train
+```
+
+Options:
+- `--data PATH`: Input CSV path (default: `data/training_data.csv`)
+- `--model PATH`: Output model path (default: `data/solver_model.npz`)
+- `--max-depth N`: Decision tree max depth (default: 5)
+- `--generate`: Generate training data before training
+
+Training accuracy is printed after fitting. The model is a numpy-only CART decision tree using Gini impurity — no sklearn dependency.
+
+#### Step 3: Use the ML selector
+
+```bash
+# Predict the best solver and run only that one
+python -m app.run_benchmark --use-ml-selector --alpha 1.5
+
+# Custom model path
+python -m app.run_benchmark --use-ml-selector --model-path data/solver_model.npz --alpha 0.5 1.0
+```
+
+The ML selector extracts 14 features from the initial condition and problem parameters, feeds them to the decision tree, and runs only the predicted solver.
+
+#### Incremental update (`--update`)
+
+The `--update` flag appends the current benchmark results to the training data and retrains the model. This enables incremental learning: each benchmark run improves future predictions.
+
+```bash
+# Run benchmark and update the model with the results
+python -m app.run_benchmark --alpha 0.5 1.0 --update
+
+# With custom paths
+python -m app.run_benchmark --alpha 2.0 --update --data-path data/training_data.csv --model-path data/solver_model.npz
+```
+
+What `--update` does:
+1. Runs the normal benchmark (all solvers, all alpha values)
+2. For each alpha value, extracts initial features and determines the best solver
+3. Appends these samples to `data/training_data.csv`
+4. Retrains the decision tree on all accumulated data
+5. Saves the updated model to `data/solver_model.npz`
+
+Typical workflow for incremental improvement:
+
+```bash
+# Initial setup
+python -m app.run_benchmark --generate-data
+python -m policy.train --data data/training_data.csv
+
+# Day-to-day use: run benchmarks and accumulate data
+python -m app.run_benchmark --alpha 0.3 0.7 --init sharp --update
+python -m app.run_benchmark --alpha 1.2 --nr 71 --update
+
+# Use the improved model
+python -m app.run_benchmark --use-ml-selector --alpha 1.5
+```
+
+#### Feature list (14 features)
+
+| Category | Feature | Description |
+|----------|---------|-------------|
+| Problem param | `alpha` | Nonlinearity parameter |
+| Problem param | `nr` | Number of grid points |
+| Problem param | `dt` | Time step |
+| Problem param | `t_end` | Final simulation time |
+| Problem param | `init_gaussian` | 1 if gaussian IC, 0 otherwise |
+| Problem param | `init_sharp` | 1 if sharp IC, 0 otherwise |
+| Physical | `max_abs_gradient` | max\|dT₀/dr\| |
+| Physical | `energy_content` | ∫T₀·r·dr |
+| Physical | `max_chi` | max(1 + α\|dT₀/dr\|) |
+| Physical | `max_laplacian` | max\|d²T₀/dr²\| |
+| Physical | `T_center` | T₀(r=0) |
+| Derived | `gradient_sharpness` | max_abs_gradient / T_center |
+| Derived | `chi_ratio` | max_chi / min_chi |
+| Derived | `problem_stiffness` | α × max_abs_gradient |
+
+#### Model files
+
+| File | Description |
+|------|-------------|
+| `data/training_data.csv` | Training data (features + best_solver label) |
+| `data/solver_model.npz` | Serialized decision tree model |
+
+Both are gitignored. Regenerate with `make train`.
 
 ---
 
@@ -176,10 +300,10 @@ python -m pytest tests/test_solvers.py -v    # Solvers
 python -m pytest tests/test_policy.py -v     # Selection policy
 ```
 
-All 17 tests should pass:
+All 22 tests should pass:
 - `test_features.py` (8 tests): Gradient, Laplacian, energy on analytic profiles (T=1-r^2)
 - `test_solvers.py` (5 tests): Basic operation and boundary condition checks
-- `test_policy.py` (4 tests): Selection logic correctness
+- `test_policy.py` (9 tests): Selection logic, ML feature extraction, decision tree, incremental update
 
 ---
 

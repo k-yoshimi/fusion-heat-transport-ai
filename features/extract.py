@@ -63,3 +63,38 @@ def extract_all(T: np.ndarray, r: np.ndarray, alpha: float = 0.0) -> dict:
         "T_center": float(T[0]),
         "T_edge": float(T[-1]),
     }
+
+
+def extract_initial_features(
+    T0: np.ndarray, r: np.ndarray, alpha: float,
+    nr: int, dt: float, t_end: float, init_kind: str,
+) -> dict:
+    """Extract features from initial condition and problem parameters for ML selector.
+
+    Returns dict with 14 features suitable for solver prediction.
+    """
+    feats = extract_all(T0, r, alpha)
+    t_center = feats["T_center"]
+    max_grad = feats["max_abs_gradient"]
+    max_chi_val = feats["max_chi"]
+    min_chi_val = feats["min_chi"]
+
+    return {
+        # Problem parameters (6)
+        "alpha": alpha,
+        "nr": nr,
+        "dt": dt,
+        "t_end": t_end,
+        "init_gaussian": 1.0 if init_kind == "gaussian" else 0.0,
+        "init_sharp": 1.0 if init_kind == "sharp" else 0.0,
+        # Physical features from T0 (5)
+        "max_abs_gradient": max_grad,
+        "energy_content": feats["energy_content"],
+        "max_chi": max_chi_val,
+        "max_laplacian": feats["max_laplacian"],
+        "T_center": t_center,
+        # Derived (3)
+        "gradient_sharpness": max_grad / t_center if t_center > 0 else 0.0,
+        "chi_ratio": max_chi_val / min_chi_val if min_chi_val > 0 else 1.0,
+        "problem_stiffness": alpha * max_grad,
+    }

@@ -70,6 +70,16 @@
 - ImplicitFDM: 0.005s -> 0.002s (~2.5x additional speedup)
 - Total speedup from original: ~6.5x
 
+## Step 18: ML-based solver selector
+- `features/extract.py`: Added `extract_initial_features()` — 14 features from initial condition + problem params
+- `policy/tree.py`: Numpy-only decision tree (CART with Gini impurity, save/load to .npz)
+- `policy/train.py`: Parameter sweep data generation (~432 instances) + model training CLI
+- `policy/select.py`: Added `select_with_ml()` — loads trained model, predicts best solver
+- `app/run_benchmark.py`: Added `--generate-data`, `--use-ml-selector`, `--model-path`, `--update`, `--data-path` flags
+- `policy/train.py`: Added `append_training_sample()` for incremental data accumulation
+- `Makefile`: Added `make train` target
+- Tests for feature extraction, decision tree fit/predict/save/load, ML selector, and incremental update
+
 ## Bug fixes
 - Fixed spectral solver instability: switched from 1/(1+dt*lam) to exp(-lam*dt) decay
 - Fixed zero_crossings test expectation (4 crossings, not 6)
