@@ -1,21 +1,21 @@
 ---
 name: run-tests
-description: テストを実行し失敗があれば修正する
+description: Run tests and fix failures if any
 user-invocable: true
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
 # Run Tests
 
-テストスイートを実行し、失敗があれば原因を調査して修正してください。
+Execute the test suite and fix any failures.
 
-## 手順
+## Steps
 
-1. `python -m pytest tests/ -v` を実行
-2. 全テストパスなら結果を報告して終了
-3. 失敗がある場合:
-   - 失敗したテストのエラーメッセージを分析
-   - 関連するソースコードを読む
-   - 修正案をユーザーに説明してから修正
-   - 再度テスト実行で確認
-4. HISTORY.md にバグ修正内容を追記
+1. Run `python -m pytest tests/ -v`
+2. If all tests pass, report results and finish
+3. If any tests fail:
+   - Analyze the error messages of failed tests
+   - Read the relevant source code
+   - Explain the fix to the user before applying it
+   - Re-run tests to confirm the fix
+4. Append bug fix details to HISTORY.md

@@ -1,91 +1,90 @@
-# 実行マニュアル
+# User Manual
 
-## 1. セットアップ
+## 1. Setup
 
 ```bash
-# 依存パッケージのインストール
+# Install dependencies
 pip install -e ".[dev]"
 
-# (オプション) PINNソルバーを使う場合
+# (Optional) To use the PINN solver
 pip install -e ".[torch]"
 ```
 
-必須依存: `numpy>=1.24`, `pytest>=7.0`
+Required: `numpy>=1.24`, `pytest>=7.0`
 
 ---
 
-## 2. ベンチマークの実行
+## 2. Running the Benchmark
 
-### 基本実行
+### Basic execution
 
 ```bash
 python -m app.run_benchmark
 ```
 
-デフォルトパラメータ: `--alpha 0.0 0.5 1.0 --nr 51 --dt 0.001 --t_end 0.1 --init gaussian`
+Default parameters: `--alpha 0.0 0.5 1.0 --nr 51 --dt 0.001 --t_end 0.1 --init gaussian`
 
-### パラメータのカスタマイズ
+### Customizing parameters
 
 ```bash
-# 非線形性パラメータを変える
+# Vary the nonlinearity parameter
 python -m app.run_benchmark --alpha 0.0 0.5 1.0 2.0
 
-# グリッド解像度を上げる（計算時間増加）
+# Increase grid resolution (slower)
 python -m app.run_benchmark --nr 101 --dt 0.0005
 
-# 急峻な初期条件を使う
+# Use a sharp initial condition
 python -m app.run_benchmark --init sharp
 
-# 長時間シミュレーション
+# Longer simulation
 python -m app.run_benchmark --t_end 0.5 --dt 0.001
 ```
 
-### Makefileショートカット
+### Makefile shortcuts
 
 ```bash
-make benchmark   # デフォルト実行
-make test        # テスト実行
-make clean       # outputs/ のクリーンアップ
+make benchmark   # Run with defaults
+make test        # Run tests
+make clean       # Remove outputs/
 ```
 
 ---
 
-## 3. リファレンス解の生成方法
+## 3. Reference Solution Generation
 
-### 概要
+### Overview
 
-リファレンス解は **「同じImplicit FDMソルバーを、4倍の解像度で実行したもの」** です。
-これにより、各ソルバーの「真の解にどれだけ近いか」を定量評価できます。
+The reference solution is produced by **running the same Implicit FDM solver at 4x higher resolution**. This allows quantitative evaluation of how close each solver is to the "true" solution.
 
-### 生成プロセスの詳細
+### Generation process in detail
 
-`app/run_benchmark.py` の `compute_reference()` 関数が担当:
+Handled by `compute_reference()` in `app/run_benchmark.py`:
 
 ```
-ベンチマーク用グリッド      リファレンス用グリッド
-nr = 51点                    nr_fine = 4×51 - 3 = 201点
+Benchmark grid               Reference grid
+nr = 51 points               nr_fine = 4*51 - 3 = 201 points
 dt = 0.001                   dt_fine = 0.001 / 4 = 0.00025
 dr = 1/50 = 0.02             dr_fine = 1/200 = 0.005
 ```
 
-**手順:**
+**Steps:**
 
-1. **グリッド細分化**: `nr_fine = 4 * nr - 3` で4倍の空間解像度
-2. **初期条件の補間**: `np.interp` でfineグリッドに補間
-3. **時間刻みの細分化**: `dt_fine = dt / 4` で4倍の時間解像度
-4. **ImplicitFDM実行**: Crank-Nicolson法で高精度に解く
-5. **ダウンサンプル**: fineグリッドの結果をもとのグリッド点数に戻す
+1. **Grid refinement**: `nr_fine = 4 * nr - 3` gives 4x spatial resolution
+2. **Initial condition interpolation**: `np.interp` maps T0 onto the fine grid
+3. **Time step refinement**: `dt_fine = dt / 4` gives 4x temporal resolution
+4. **ImplicitFDM solve**: Crank-Nicolson on the fine grid
+5. **Downsample**: Map the fine-grid result back to the original grid points
 
-### なぜこの方法か
+### Why this approach
 
-- Crank-Nicolson法は**空間2次精度 × 時間2次精度**
-- グリッドを4倍にすると誤差は約 (1/4)² = **1/16 に減少**
-- つまりリファレンスは通常解の約16倍の精度
-- 解析解が存在しないPDEでも使える実用的な手法（Richardson外挿の考え方）
+- Crank-Nicolson is **2nd order in both space and time**
+- Refining the grid by 4x reduces error by roughly (1/4)^2 = **1/16**
+- The reference is therefore ~16x more accurate than the benchmark solve
+- Works even for PDEs without known analytical solutions (Richardson extrapolation principle)
 
-### リファレンスを単独で生成するには
+### Generating the reference standalone
 
-Pythonから直接呼び出せます:
+Call directly from Python:
 
 ```python
 import numpy as np
@@ -95,124 +94,124 @@ nr = 51
 r = np.linspace(0, 1, nr)
 T0 = make_initial(r, "gaussian")  # or "sharp"
 
-# alpha=0.5 のリファレンス解を生成
+# Generate reference for alpha=0.5
 T_ref = compute_reference(T0, r, dt=0.001, t_end=0.1, alpha=0.5)
 
-print(T_ref.shape)   # (401, 51) — (時間ステップ数+1, 空間点数)
-print(T_ref[-1])      # 最終時刻の温度プロファイル
+print(T_ref.shape)   # (401, 51) — (time_steps+1, spatial_points)
+print(T_ref[-1])      # Temperature profile at final time
 ```
 
 ---
 
-## 4. 誤差評価の定義
+## 4. Error Metric Definitions
 
-### L2誤差（相対, 円筒座標重み付き）
-
-```
-L2 = sqrt( ∫(T - T_ref)² r dr / ∫T_ref² r dr )
-```
-
-`r` による重み付けは円筒座標の体積要素を反映。中心(r=0)付近より外側(r→1)の誤差が重視されます。
-
-### L∞誤差（最大絶対誤差）
+### L2 error (relative, cylindrical-weighted)
 
 ```
-L∞ = max |T - T_ref|
+L2 = sqrt( integral((T - T_ref)^2 * r dr) / integral(T_ref^2 * r dr) )
 ```
 
-全点での最悪ケースの誤差。
+The `r` weighting reflects the cylindrical volume element. Errors near the edge (r->1) are weighted more heavily than near the center (r=0).
+
+### L-infinity error (maximum absolute error)
+
+```
+Linf = max |T - T_ref|
+```
+
+Worst-case pointwise error across the entire domain.
 
 ---
 
-## 5. ソルバー選択ポリシー
+## 5. Solver Selection Policy
 
 ```
-score = L2_error + λ × wall_time
+score = L2_error + lambda * wall_time
 ```
 
-- `λ = 0.1`（デフォルト）: 精度重視
-- `λ = 1.0`: 計算速度をより重視
-- `λ = 0.0`: 純粋に精度のみで選択
+- `lambda = 0.1` (default): accuracy-focused
+- `lambda = 1.0`: more emphasis on speed
+- `lambda = 0.0`: pure accuracy selection
 
-`policy/select.py` の `select_best()` で変更可能。
+Configurable in `policy/select.py` via `select_best()`.
 
 ---
 
-## 6. 出力ファイル
+## 6. Output Files
 
-ベンチマーク実行後、`outputs/` に生成:
+After a benchmark run, generated in `outputs/`:
 
-| ファイル | 内容 |
-|---------|------|
-| `outputs/benchmark.csv` | 全ソルバー×全αの結果テーブル |
-| `outputs/benchmark.md` | マークダウン形式のサマリー |
+| File | Contents |
+|------|----------|
+| `outputs/benchmark.csv` | Full results table (all solvers x all alpha) |
+| `outputs/benchmark.md` | Markdown summary |
 
-### CSVの列
+### CSV columns
 
-| 列名 | 説明 |
-|------|------|
-| `name` | ソルバー名 |
-| `alpha` | 非線形性パラメータ |
-| `l2_error` | L2誤差 (vs リファレンス) |
-| `linf_error` | L∞誤差 |
-| `wall_time` | 実行時間 [秒] |
+| Column | Description |
+|--------|-------------|
+| `name` | Solver name |
+| `alpha` | Nonlinearity parameter |
+| `l2_error` | L2 error (vs reference) |
+| `linf_error` | L-infinity error |
+| `wall_time` | Wall-clock time [seconds] |
 | `max_abs_gradient` | max\|dT/dr\| |
-| `zero_crossings` | dT/dr のゼロ交差数 |
-| `energy_content` | ∫T·r·dr (熱エネルギー) |
-| `max_chi` / `min_chi` | 熱拡散率の最大/最小 |
-| `max_laplacian` | max\|d²T/dr²\| |
-| `T_center` / `T_edge` | 中心/端の温度 |
+| `zero_crossings` | Number of zero crossings of dT/dr |
+| `energy_content` | integral(T*r*dr) (thermal energy) |
+| `max_chi` / `min_chi` | Max/min thermal diffusivity |
+| `max_laplacian` | max\|d2T/dr2\| |
+| `T_center` / `T_edge` | Temperature at center/edge |
 
 ---
 
-## 7. テスト
+## 7. Tests
 
 ```bash
-# 全テスト実行
+# Run all tests
 python -m pytest tests/ -v
 
-# 個別テスト
-python -m pytest tests/test_features.py -v   # 特徴量抽出
-python -m pytest tests/test_solvers.py -v    # ソルバー
-python -m pytest tests/test_policy.py -v     # 選択ポリシー
+# Run individual test files
+python -m pytest tests/test_features.py -v   # Feature extraction
+python -m pytest tests/test_solvers.py -v    # Solvers
+python -m pytest tests/test_policy.py -v     # Selection policy
 ```
 
-17テストが全てパスすることを確認:
-- `test_features.py` (8テスト): 解析的プロファイル(T=1-r²)での勾配・ラプラシアン・エネルギーの検証
-- `test_solvers.py` (5テスト): 各ソルバーの基本動作・境界条件の検証
-- `test_policy.py` (4テスト): 選択ロジックの正当性
+All 17 tests should pass:
+- `test_features.py` (8 tests): Gradient, Laplacian, energy on analytic profiles (T=1-r^2)
+- `test_solvers.py` (5 tests): Basic operation and boundary condition checks
+- `test_policy.py` (4 tests): Selection logic correctness
 
 ---
 
-## 8. 対象PDE
+## 8. Target PDE
 
-### 方程式
-
-```
-∂T/∂t = (1/r) ∂/∂r (r χ ∂T/∂r)
-```
-
-### 非線形拡散係数
+### Equation
 
 ```
-χ(|∂T/∂r|) = 1 + α|∂T/∂r|
+dT/dt = (1/r) d/dr (r chi dT/dr)
 ```
 
-- `α = 0`: 線形拡散（解析解が存在）
-- `α > 0`: 勾配が大きい領域で拡散が強まる（プラズマの異常輸送モデル）
-
-### 境界条件
-
-- `r = 0`: Neumann条件 `∂T/∂r = 0`（対称性）
-- `r = 1`: Dirichlet条件 `T = 0`（壁温度固定）
-
-### r=0 の特異点処理
-
-`(1/r)∂/∂r(r χ ∂T/∂r)` は r=0 で 0/0 型不定形。
-L'Hôpitalの定理を適用:
+### Nonlinear diffusivity
 
 ```
-lim_{r→0} (1/r)∂/∂r(r χ ∂T/∂r) = 2χ ∂²T/∂r²
+chi(|dT/dr|) = 1 + alpha * |dT/dr|
 ```
 
-これにより r=0 でも安定に計算できます。
+- `alpha = 0`: Linear diffusion (analytical solution exists)
+- `alpha > 0`: Enhanced diffusion in steep-gradient regions (anomalous transport model for plasmas)
+
+### Boundary conditions
+
+- `r = 0`: Neumann condition `dT/dr = 0` (symmetry)
+- `r = 1`: Dirichlet condition `T = 0` (fixed wall temperature)
+
+### Singularity treatment at r=0
+
+`(1/r) d/dr(r chi dT/dr)` is an indeterminate form (0/0) at r=0.
+Applying L'Hopital's rule:
+
+```
+lim_{r->0} (1/r) d/dr(r chi dT/dr) = 2 chi d2T/dr2
+```
+
+This allows stable computation at r=0.

@@ -1,28 +1,28 @@
 ---
 name: add-solver
-description: 新しいソルバーをプロジェクトに追加する
+description: Add a new solver to the project
 user-invocable: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
 # Add Solver
 
-新しい数値ソルバーをプロジェクトに追加してください。
+Add a new numerical solver to the project.
 
-## 手順
+## Steps
 
-1. ユーザーにソルバーの種類・手法を確認（例: 陽的FDM, MOL, FEM等）
-2. `solvers/base.py` の `SolverBase` を読み、インターフェースを確認
-3. 適切なサブディレクトリを作成（例: `solvers/fem/`）
-4. `SolverBase` を継承した新ソルバーを実装:
-   - `name` クラス属性を設定
-   - `solve(T0, r, dt, t_end, alpha) -> T_history` を実装
-   - r=0 の特異点を L'Hôpital で処理
-   - Neumann BC (r=0), Dirichlet BC (r=1) を適用
-5. `tests/test_solvers.py` にテストを追加:
-   - 基本動作テスト（温度が拡散で下がるか）
-   - 境界条件テスト
-   - 非線形(alpha>0)テスト
-6. `app/run_benchmark.py` の `run()` にソルバーを追加
-7. `python -m pytest tests/ -v` で全テストパスを確認
-8. HISTORY.md を更新
+1. Ask the user for the solver type/method (e.g., explicit FDM, MOL, FEM, etc.)
+2. Read `solvers/base.py` to review the `SolverBase` interface
+3. Create an appropriate subdirectory (e.g., `solvers/fem/`)
+4. Implement the new solver inheriting from `SolverBase`:
+   - Set the `name` class attribute
+   - Implement `solve(T0, r, dt, t_end, alpha) -> T_history`
+   - Handle r=0 singularity via L'Hopital's rule
+   - Apply Neumann BC (r=0) and Dirichlet BC (r=1)
+5. Add tests in `tests/test_solvers.py`:
+   - Basic operation test (temperature decreases via diffusion)
+   - Boundary condition test
+   - Nonlinear (alpha>0) test
+6. Register the solver in `app/run_benchmark.py` `run()` function
+7. Verify all tests pass with `python -m pytest tests/ -v`
+8. Update HISTORY.md

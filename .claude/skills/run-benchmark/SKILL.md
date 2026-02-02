@@ -1,24 +1,24 @@
 ---
 name: run-benchmark
-description: ベンチマークを実行し結果を報告する
+description: Run the benchmark suite and report results
 user-invocable: true
 allowed-tools: Bash, Read
 ---
 
 # Run Benchmark
 
-ベンチマークスイートを実行して結果を報告してください。
+Execute the benchmark suite and report results.
 
-## 手順
+## Steps
 
-1. まず `python -m pytest tests/ -v` でテストが通ることを確認
-2. ユーザーが引数を指定した場合はそれを使い、指定がなければデフォルトで実行:
+1. First verify tests pass with `python -m pytest tests/ -v`
+2. If the user specified arguments, use those; otherwise run with defaults:
    ```
    python -m app.run_benchmark --alpha 0.0 0.5 1.0
    ```
-3. `outputs/benchmark.csv` と `outputs/benchmark.md` を読み取る
-4. 結果を以下の観点でユーザーに報告:
-   - 各ソルバーのL2/L∞誤差
-   - 実行時間
-   - 最良ソルバーとその理由
-   - 前回との差異（もしあれば）
+3. Read `outputs/benchmark.csv` and `outputs/benchmark.md`
+4. Report results to the user covering:
+   - L2/L-infinity error for each solver
+   - Wall-clock time
+   - Best solver and why
+   - Differences from previous run (if any)

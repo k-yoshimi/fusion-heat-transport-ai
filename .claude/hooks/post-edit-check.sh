@@ -1,6 +1,5 @@
 #!/bin/bash
-# PostToolUse hook: solvers/ や features/ のPythonファイルが編集されたら
-# 簡単な構文チェックを実行する
+# PostToolUse hook: Run syntax check when Python files in core modules are edited
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.file_path // empty')
 
