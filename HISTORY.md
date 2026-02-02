@@ -48,6 +48,14 @@
 - リファレンス解の生成方法の詳細解説
 - CLI引数、出力ファイル、誤差定義、PDE解説
 
+## Step 14: Claude Code スキル & フック追加
+- `/run-benchmark`: ベンチマーク実行・結果報告
+- `/add-solver`: 新ソルバー追加ウィザード
+- `/run-tests`: テスト実行・失敗時自動修正
+- `/analyze-results`: ベンチマーク結果の詳細分析
+- `/refine-reference`: リファレンス解の精度検証・改善
+- PostToolUseフック: Python編集時の自動構文チェック
+
 ## Bug fixes
 - Fixed spectral solver instability: switched from 1/(1+dt*lam) to exp(-lam*dt) decay
 - Fixed zero_crossings test expectation (4 crossings, not 6)
