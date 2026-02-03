@@ -66,12 +66,6 @@ Try different nonlinearity strengths:
 python -m app.run_benchmark --alpha 0.0 1.0 2.0
 ```
 
-Use a sharp (step-function-like) initial condition:
-
-```bash
-python -m app.run_benchmark --init sharp
-```
-
 Increase grid resolution for higher accuracy:
 
 ```bash
@@ -121,9 +115,9 @@ Boundary conditions:
 - r = 0: Symmetry (∂T/∂r = 0)
 - r = 1: Fixed wall temperature (T = 0)
 
-The two available initial conditions:
+The initial condition T₀(r) = 1 - r² is a parabola that naturally satisfies both boundary conditions: T₀(1) = 0 and dT₀/dr|_{r=0} = 0.
 
-![Initial Conditions](figures/initial_conditions.png)
+![Initial Condition](figures/initial_conditions.png)
 
 The nonlinear diffusivity χ activates only where |dT/dr| > 0.5. The α parameter controls how steeply χ rises above the threshold:
 
@@ -143,16 +137,12 @@ from app.run_benchmark import make_initial, compute_reference
 
 r = np.linspace(0, 1, 51)
 
-# Gaussian initial condition: peaked at center
-T0_gauss = make_initial(r, "gaussian")
-print(f"Gaussian: T(0)={T0_gauss[0]:.3f}, T(1)={T0_gauss[-1]:.6f}")
-
-# Sharp initial condition: step-like, peaked at center
-T0_sharp = make_initial(r, "sharp")
-print(f"Sharp: T(0)={T0_sharp[0]:.3f}, T(1)={T0_sharp[-1]:.6f}")
+# Initial condition: T₀ = 1 - r²
+T0 = make_initial(r)
+print(f"T(0)={T0[0]:.3f}, T(1)={T0[-1]:.6f}")  # T(0)=1.000, T(1)=0.000
 
 # Compute solution for alpha=0.5
-T_ref = compute_reference(T0_gauss, r, dt=0.001, t_end=0.1, alpha=0.5)
+T_ref = compute_reference(T0, r, dt=0.001, t_end=0.1, alpha=0.5)
 print(f"Solution shape: {T_ref.shape}")  # (time_steps+1, spatial_points)
 print(f"Final center temperature: {T_ref[-1, 0]:.4f}")
 ```
@@ -164,7 +154,7 @@ You can inspect the diffusivity profile directly:
 ```python
 from features.extract import gradient, chi
 
-dTdr = gradient(T0_gauss, r)
+dTdr = gradient(T0, r)
 print(f"Max |dT/dr|: {np.max(np.abs(dTdr)):.3f}")
 
 # Compute chi for different alpha values
@@ -180,7 +170,7 @@ The `features/extract.py` module computes physical quantities from temperature p
 ```python
 from features.extract import extract_all
 
-feats = extract_all(T0_gauss, r, alpha=0.5)
+feats = extract_all(T0, r, alpha=0.5)
 for k, v in feats.items():
     print(f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}")
 ```
@@ -196,7 +186,7 @@ from solvers.spectral.cosine import CosineSpectral
 from metrics.accuracy import compute_errors
 
 r = np.linspace(0, 1, 51)
-T0 = make_initial(r, "gaussian")
+T0 = make_initial(r)
 alpha = 0.5  # Use moderate alpha for stable comparison
 
 # Reference solution
@@ -238,13 +228,12 @@ Run a parameter sweep over many combinations of α, grid size, time step, etc.:
 python -m app.run_benchmark --generate-data
 ```
 
-This creates `data/training_data.csv` with ~432 rows. Each row contains:
-- 14 features (problem parameters + initial condition properties)
+This creates `data/training_data.csv` with ~216 rows. Each row contains:
+- 12 features (problem parameters + initial condition properties)
 - The label: which solver scored best
 
 The sweep covers:
 - α: 0.0, 0.1, 0.2, 0.5, 0.8, 1.0, 1.5, 2.0
-- init: gaussian, sharp
 - nr: 31, 51, 71
 - dt: 0.0005, 0.001, 0.002
 - t_end: 0.05, 0.1, 0.2
@@ -292,13 +281,12 @@ The ML selector should pick the same solver that the full benchmark identifies a
 
 ### 4.4 Understanding the features
 
-The ML model uses 14 features extracted before solving:
+The ML model uses 12 features extracted before solving:
 
 | Category | Feature | What it measures |
 |----------|---------|------------------|
 | Problem | `alpha` | Nonlinearity exponent |
 | Problem | `nr`, `dt`, `t_end` | Discretization parameters |
-| Problem | `init_gaussian`, `init_sharp` | Initial condition type (one-hot) |
 | Physical | `max_abs_gradient` | Steepest gradient in T₀ — determines if χ threshold (0.5) is exceeded |
 | Physical | `energy_content` | Total thermal energy ∫T₀·r·dr |
 | Physical | `max_chi` | Peak diffusivity at t=0 — reflects threshold activation |
@@ -330,7 +318,7 @@ Each `--update` run appends new data and retrains:
 
 ```bash
 # Run with a new parameter combination and update the model
-python -m app.run_benchmark --alpha 0.3 --init sharp --update
+python -m app.run_benchmark --alpha 0.3 --update
 
 # Try another combination
 python -m app.run_benchmark --alpha 1.2 --nr 71 --dt 0.0005 --update
@@ -355,7 +343,7 @@ Model saved to data/solver_model.npz
 After accumulating more data, test the ML selector:
 
 ```bash
-python -m app.run_benchmark --use-ml-selector --alpha 0.3 --init sharp
+python -m app.run_benchmark --use-ml-selector --alpha 0.3
 ```
 
 The model now has direct experience with this parameter combination.
@@ -368,11 +356,11 @@ make train
 
 # Day 2: Explore new parameters, model learns from each run
 python -m app.run_benchmark --alpha 0.0 0.5 1.0 --update
-python -m app.run_benchmark --alpha 0.0 0.5 1.0 --init sharp --update
+python -m app.run_benchmark --alpha 0.3 0.7 1.5 --update
 
 # Day 3: Use ML selector for fast runs
 python -m app.run_benchmark --use-ml-selector --alpha 0.7
-python -m app.run_benchmark --use-ml-selector --alpha 1.3 --init sharp
+python -m app.run_benchmark --use-ml-selector --alpha 1.3
 
 # Periodically verify: does ML match full benchmark?
 python -m app.run_benchmark --alpha 0.7
@@ -452,7 +440,7 @@ from solvers.your_method.solver import YourSolver
 def test_your_solver_basic():
     solver = YourSolver()
     r = np.linspace(0, 1, 51)
-    T0 = np.exp(-10 * r**2)
+    T0 = 1.0 - r**2
     T_hist = solver.solve(T0, r, 0.001, 0.01, alpha=0.0)
     assert T_hist.shape[0] == 11  # 10 steps + initial
     assert T_hist.shape[1] == 51

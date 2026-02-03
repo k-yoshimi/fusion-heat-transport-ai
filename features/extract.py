@@ -71,11 +71,11 @@ def extract_all(T: np.ndarray, r: np.ndarray, alpha: float = 0.0) -> dict:
 
 def extract_initial_features(
     T0: np.ndarray, r: np.ndarray, alpha: float,
-    nr: int, dt: float, t_end: float, init_kind: str,
+    nr: int, dt: float, t_end: float,
 ) -> dict:
     """Extract features from initial condition and problem parameters for ML selector.
 
-    Returns dict with 14 features suitable for solver prediction.
+    Returns dict with 12 features suitable for solver prediction.
     """
     feats = extract_all(T0, r, alpha)
     t_center = feats["T_center"]
@@ -84,13 +84,11 @@ def extract_initial_features(
     min_chi_val = feats["min_chi"]
 
     return {
-        # Problem parameters (6)
+        # Problem parameters (4)
         "alpha": alpha,
         "nr": nr,
         "dt": dt,
         "t_end": t_end,
-        "init_gaussian": 1.0 if init_kind == "gaussian" else 0.0,
-        "init_sharp": 1.0 if init_kind == "sharp" else 0.0,
         # Physical features from T0 (5)
         "max_abs_gradient": max_grad,
         "energy_content": feats["energy_content"],

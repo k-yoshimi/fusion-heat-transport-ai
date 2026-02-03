@@ -13,14 +13,9 @@ from policy.select import select_best
 from reports.generate import write_csv, write_markdown
 
 
-def make_initial(r: np.ndarray, kind: str = "gaussian") -> np.ndarray:
-    """Create initial temperature profile."""
-    if kind == "gaussian":
-        return np.exp(-10 * r**2)
-    elif kind == "sharp":
-        return np.where(r < 0.3, 1.0, 0.0) * (1.0 - r / 0.3)
-    else:
-        raise ValueError(f"Unknown initial condition: {kind}")
+def make_initial(r: np.ndarray) -> np.ndarray:
+    """Create initial temperature profile: T₀(r) = 1 - r²."""
+    return 1.0 - r**2
 
 
 def compute_reference(T0, r, dt, t_end, alpha):
@@ -36,13 +31,13 @@ def compute_reference(T0, r, dt, t_end, alpha):
     return T_hist[:, indices]
 
 
-def run(alpha_list, nr=51, dt=0.001, t_end=0.1, init="gaussian"):
+def run(alpha_list, nr=51, dt=0.001, t_end=0.1):
     """Run benchmark for given alpha values."""
     all_results = []
 
     for alpha in alpha_list:
         r = np.linspace(0, 1, nr)
-        T0 = make_initial(r, init)
+        T0 = make_initial(r)
 
         # Reference solution
         print(f"Computing reference for alpha={alpha}...")
@@ -97,7 +92,7 @@ def run(alpha_list, nr=51, dt=0.001, t_end=0.1, init="gaussian"):
     print("\nReports written to outputs/")
 
 
-def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1, init="gaussian",
+def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1,
                     model_path="data/solver_model.npz"):
     """Run benchmark using ML-predicted best solver only."""
     from policy.select import select_with_ml
@@ -106,9 +101,9 @@ def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1, init="gaussian",
 
     for alpha in alpha_list:
         r = np.linspace(0, 1, nr)
-        T0 = make_initial(r, init)
+        T0 = make_initial(r)
 
-        predicted = select_with_ml(T0, r, alpha, nr, dt, t_end, init, model_path)
+        predicted = select_with_ml(T0, r, alpha, nr, dt, t_end, model_path)
         print(f"ML predicted best solver for alpha={alpha}: {predicted}")
 
         if predicted not in solver_map:
@@ -132,7 +127,7 @@ def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1, init="gaussian",
         print(f"  L2={errs['l2']:.6g}, Linf={errs['linf']:.6g}, time={wall:.4f}s")
 
 
-def _update_model(alpha_list, nr, dt, t_end, init, data_path, model_path):
+def _update_model(alpha_list, nr, dt, t_end, data_path, model_path):
     """Append current benchmark results to training data and retrain."""
     from policy.train import append_training_sample, train_model
 
@@ -141,8 +136,8 @@ def _update_model(alpha_list, nr, dt, t_end, init, data_path, model_path):
 
     for alpha in alpha_list:
         r = np.linspace(0, 1, nr)
-        T0 = make_initial(r, init)
-        feats = extract_initial_features(T0, r, alpha, nr, dt, t_end, init)
+        T0 = make_initial(r)
+        feats = extract_initial_features(T0, r, alpha, nr, dt, t_end)
 
         T_ref = compute_reference(T0, r, dt, t_end, alpha)
         results = []
@@ -185,7 +180,6 @@ def main():
     parser.add_argument("--nr", type=int, default=51)
     parser.add_argument("--dt", type=float, default=0.001)
     parser.add_argument("--t_end", type=float, default=0.1)
-    parser.add_argument("--init", choices=["gaussian", "sharp"], default="gaussian")
     parser.add_argument("--generate-data", action="store_true",
                         help="Generate training data via parameter sweep")
     parser.add_argument("--use-ml-selector", action="store_true",
@@ -204,14 +198,14 @@ def main():
         return
 
     if args.use_ml_selector:
-        run_ml_selector(args.alpha, args.nr, args.dt, args.t_end, args.init,
+        run_ml_selector(args.alpha, args.nr, args.dt, args.t_end,
                         args.model_path)
         return
 
-    run(args.alpha, args.nr, args.dt, args.t_end, args.init)
+    run(args.alpha, args.nr, args.dt, args.t_end)
 
     if args.update:
-        _update_model(args.alpha, args.nr, args.dt, args.t_end, args.init,
+        _update_model(args.alpha, args.nr, args.dt, args.t_end,
                       args.data_path, args.model_path)
 
 

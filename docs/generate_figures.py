@@ -16,24 +16,22 @@ from app.run_benchmark import make_initial, compute_reference
 from solvers.fdm.implicit import ImplicitFDM
 from solvers.spectral.cosine import CosineSpectral
 from metrics.accuracy import compute_errors
-from features.extract import extract_all, extract_initial_features
+from features.extract import extract_all
 
 FIGDIR = os.path.join(os.path.dirname(__file__), "figures")
 plt.rcParams.update({"figure.dpi": 150, "figure.figsize": (7, 4.5)})
 
 
-def fig1_initial_conditions():
-    """Plot gaussian and sharp initial conditions."""
+def fig1_initial_condition():
+    """Plot the initial condition T₀(r) = 1 - r²."""
     r = np.linspace(0, 1, 201)
-    T_gauss = make_initial(r, "gaussian")
-    T_sharp = make_initial(r, "sharp")
+    T0 = make_initial(r)
 
     fig, ax = plt.subplots()
-    ax.plot(r, T_gauss, label="Gaussian", linewidth=2)
-    ax.plot(r, T_sharp, label="Sharp", linewidth=2)
+    ax.plot(r, T0, linewidth=2, label="T₀ = 1 − r²")
     ax.set_xlabel("r")
     ax.set_ylabel("T(r, t=0)")
-    ax.set_title("Initial Conditions")
+    ax.set_title("Initial Condition")
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -45,7 +43,7 @@ def fig1_initial_conditions():
 def fig2_time_evolution():
     """Plot temperature evolution for alpha=0 and alpha=1."""
     r = np.linspace(0, 1, 201)
-    T0 = make_initial(r, "gaussian")
+    T0 = make_initial(r)
     dt, t_end = 0.0002, 0.2
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
@@ -77,7 +75,7 @@ def fig2_time_evolution():
 def fig3_solver_comparison():
     """Compare solver final profiles and errors for alpha=1.0."""
     r = np.linspace(0, 1, 101)
-    T0 = make_initial(r, "gaussian")
+    T0 = make_initial(r)
     alpha, dt, t_end = 1.0, 0.0005, 0.1
 
     T_ref = compute_reference(T0, r, dt, t_end, alpha)
@@ -128,7 +126,7 @@ def fig4_alpha_sweep():
     results = {s().name: {"l2": [], "time": []} for s in solver_classes}
 
     for alpha in alphas:
-        T0 = make_initial(r, "gaussian")
+        T0 = make_initial(r)
         T_ref = compute_reference(T0, r, dt, t_end, alpha)
         for SC in solver_classes:
             s = SC()
@@ -184,7 +182,7 @@ def fig4_alpha_sweep():
 def fig5_nonlinear_diffusivity():
     """Show chi profile for different alpha values."""
     r = np.linspace(0, 1, 201)
-    T0 = make_initial(r, "gaussian")
+    T0 = make_initial(r)
     from features.extract import gradient, chi
 
     dTdr = gradient(T0, r)
@@ -195,7 +193,7 @@ def fig5_nonlinear_diffusivity():
     ax.plot(r, T0, linewidth=2)
     ax.set_xlabel("r")
     ax.set_ylabel("T₀(r)")
-    ax.set_title("Initial Condition (Gaussian)")
+    ax.set_title("Initial Condition: T₀ = 1 − r²")
     ax.grid(True, alpha=0.3)
 
     ax = axes[1]
@@ -216,7 +214,7 @@ def fig5_nonlinear_diffusivity():
 
 if __name__ == "__main__":
     print("Generating tutorial figures...")
-    fig1_initial_conditions()
+    fig1_initial_condition()
     fig2_time_evolution()
     fig3_solver_comparison()
     fig4_alpha_sweep()

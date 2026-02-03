@@ -44,7 +44,6 @@ python -m app.run_benchmark --alpha 0.0 0.5 1.0
 --nr       Radial grid points (default: 51)
 --dt       Time step (default: 0.001)
 --t_end    Final time (default: 0.1)
---init     Initial condition: gaussian | sharp (default: gaussian)
 ```
 
 ### ML solver selector

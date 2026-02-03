@@ -22,7 +22,7 @@ Required: `numpy>=1.24`, `pytest>=7.0`
 python -m app.run_benchmark
 ```
 
-Default parameters: `--alpha 0.0 0.5 1.0 --nr 51 --dt 0.001 --t_end 0.1 --init gaussian`
+Default parameters: `--alpha 0.0 0.5 1.0 --nr 51 --dt 0.001 --t_end 0.1`
 
 ### Customizing parameters
 
@@ -32,9 +32,6 @@ python -m app.run_benchmark --alpha 0.0 0.5 1.0 2.0
 
 # Increase grid resolution (slower)
 python -m app.run_benchmark --nr 101 --dt 0.0005
-
-# Use a sharp initial condition
-python -m app.run_benchmark --init sharp
 
 # Longer simulation
 python -m app.run_benchmark --t_end 0.5 --dt 0.001
@@ -92,7 +89,7 @@ from app.run_benchmark import compute_reference, make_initial
 
 nr = 51
 r = np.linspace(0, 1, nr)
-T0 = make_initial(r, "gaussian")  # or "sharp"
+T0 = make_initial(r)  # T₀ = 1 - r²
 
 # Generate reference for alpha=0.5
 T_ref = compute_reference(T0, r, dt=0.001, t_end=0.1, alpha=0.5)
@@ -160,7 +157,6 @@ python -m app.run_benchmark --generate-data
 
 The sweep covers:
 - `alpha`: 0.0, 0.1, 0.2, 0.5, 0.8, 1.0, 1.5, 2.0
-- `init`: gaussian, sharp
 - `nr`: 31, 51, 71
 - `dt`: 0.0005, 0.001, 0.002
 - `t_end`: 0.05, 0.1, 0.2
@@ -224,14 +220,14 @@ python -m app.run_benchmark --generate-data
 python -m policy.train --data data/training_data.csv
 
 # Day-to-day use: run benchmarks and accumulate data
-python -m app.run_benchmark --alpha 0.3 0.7 --init sharp --update
+python -m app.run_benchmark --alpha 0.3 0.7 --update
 python -m app.run_benchmark --alpha 1.2 --nr 71 --update
 
 # Use the improved model
 python -m app.run_benchmark --use-ml-selector --alpha 1.5
 ```
 
-#### Feature list (14 features)
+#### Feature list (12 features)
 
 | Category | Feature | Description |
 |----------|---------|-------------|
@@ -239,8 +235,6 @@ python -m app.run_benchmark --use-ml-selector --alpha 1.5
 | Problem param | `nr` | Number of grid points |
 | Problem param | `dt` | Time step |
 | Problem param | `t_end` | Final simulation time |
-| Problem param | `init_gaussian` | 1 if gaussian IC, 0 otherwise |
-| Problem param | `init_sharp` | 1 if sharp IC, 0 otherwise |
 | Physical | `max_abs_gradient` | max\|dT₀/dr\| |
 | Physical | `energy_content` | ∫T₀·r·dr |
 | Physical | `max_chi` | max χ(|dT₀/dr|) |

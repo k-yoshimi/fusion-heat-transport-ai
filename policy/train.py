@@ -15,18 +15,15 @@ from policy.tree import NumpyDecisionTree
 
 
 FEATURE_NAMES = [
-    "alpha", "nr", "dt", "t_end", "init_gaussian", "init_sharp",
+    "alpha", "nr", "dt", "t_end",
     "max_abs_gradient", "energy_content", "max_chi", "max_laplacian",
     "T_center", "gradient_sharpness", "chi_ratio", "problem_stiffness",
 ]
 
 
-def _make_initial(r, kind):
-    if kind == "gaussian":
-        return np.exp(-10 * r ** 2)
-    elif kind == "sharp":
-        return np.where(r < 0.3, 1.0, 0.0) * (1.0 - r / 0.3)
-    raise ValueError(kind)
+def _make_initial(r):
+    """Create initial temperature profile: T₀(r) = 1 - r²."""
+    return 1.0 - r**2
 
 
 def _compute_reference(T0, r, dt, t_end, alpha):
@@ -43,7 +40,6 @@ def generate_training_data(
     output_path: str = "data/training_data.csv",
     lam: float = 0.1,
     alpha_list=None,
-    init_list=None,
     nr_list=None,
     dt_list=None,
     t_end_list=None,
@@ -51,8 +47,6 @@ def generate_training_data(
     """Run parameter sweep, label best solver, save CSV."""
     if alpha_list is None:
         alpha_list = [0.0, 0.1, 0.2, 0.5, 0.8, 1.0, 1.5, 2.0]
-    if init_list is None:
-        init_list = ["gaussian", "sharp"]
     if nr_list is None:
         nr_list = [31, 51, 71]
     if dt_list is None:
@@ -64,67 +58,66 @@ def generate_training_data(
 
     solvers = [ImplicitFDM(), CosineSpectral(), PINNStub()]
     rows = []
-    total = len(alpha_list) * len(init_list) * len(nr_list) * len(dt_list) * len(t_end_list)
+    total = len(alpha_list) * len(nr_list) * len(dt_list) * len(t_end_list)
     count = 0
 
     for alpha in alpha_list:
-        for init_kind in init_list:
-            for nr in nr_list:
-                for dt in dt_list:
-                    for t_end in t_end_list:
-                        count += 1
-                        r = np.linspace(0, 1, nr)
-                        T0 = _make_initial(r, init_kind)
+        for nr in nr_list:
+            for dt in dt_list:
+                for t_end in t_end_list:
+                    count += 1
+                    r = np.linspace(0, 1, nr)
+                    T0 = _make_initial(r)
 
-                        feats = extract_initial_features(T0, r, alpha, nr, dt, t_end, init_kind)
+                    feats = extract_initial_features(T0, r, alpha, nr, dt, t_end)
 
-                        # Reference
+                    # Reference
+                    try:
+                        T_ref = _compute_reference(T0, r, dt, t_end, alpha)
+                    except Exception:
+                        continue
+
+                    results = []
+                    for s in solvers:
                         try:
-                            T_ref = _compute_reference(T0, r, dt, t_end, alpha)
+                            t0 = time.perf_counter()
+                            T_hist = s.solve(T0.copy(), r, dt, t_end, alpha)
+                            wall = time.perf_counter() - t0
+
+                            nt_ref = T_ref.shape[0]
+                            nt_sol = T_hist.shape[0]
+                            if nt_sol != nt_ref:
+                                T_hist_cmp = np.stack([T_hist[0], T_hist[-1]])
+                                T_ref_cmp = np.stack([T_ref[0], T_ref[-1]])
+                            else:
+                                T_hist_cmp = T_hist
+                                T_ref_cmp = T_ref
+
+                            errs = compute_errors(T_hist_cmp, T_ref_cmp, r)
+                            results.append({
+                                "name": s.name,
+                                "l2_error": errs["l2"],
+                                "wall_time": wall,
+                            })
                         except Exception:
-                            continue
+                            results.append({
+                                "name": s.name,
+                                "l2_error": float("nan"),
+                                "wall_time": 0.0,
+                            })
 
-                        results = []
-                        for s in solvers:
-                            try:
-                                t0 = time.perf_counter()
-                                T_hist = s.solve(T0.copy(), r, dt, t_end, alpha)
-                                wall = time.perf_counter() - t0
+                    try:
+                        best = select_best(results, lam=lam)
+                        label = best["name"]
+                    except ValueError:
+                        continue
 
-                                nt_ref = T_ref.shape[0]
-                                nt_sol = T_hist.shape[0]
-                                if nt_sol != nt_ref:
-                                    T_hist_cmp = np.stack([T_hist[0], T_hist[-1]])
-                                    T_ref_cmp = np.stack([T_ref[0], T_ref[-1]])
-                                else:
-                                    T_hist_cmp = T_hist
-                                    T_ref_cmp = T_ref
+                    row = {**feats, "best_solver": label}
+                    rows.append(row)
 
-                                errs = compute_errors(T_hist_cmp, T_ref_cmp, r)
-                                results.append({
-                                    "name": s.name,
-                                    "l2_error": errs["l2"],
-                                    "wall_time": wall,
-                                })
-                            except Exception:
-                                results.append({
-                                    "name": s.name,
-                                    "l2_error": float("nan"),
-                                    "wall_time": 0.0,
-                                })
-
-                        try:
-                            best = select_best(results, lam=lam)
-                            label = best["name"]
-                        except ValueError:
-                            continue
-
-                        row = {**feats, "best_solver": label}
-                        rows.append(row)
-
-                        if count % 10 == 0:
-                            print(f"  [{count}/{total}] alpha={alpha} init={init_kind} "
-                                  f"nr={nr} dt={dt} t_end={t_end} -> {label}")
+                    if count % 10 == 0:
+                        print(f"  [{count}/{total}] alpha={alpha} "
+                              f"nr={nr} dt={dt} t_end={t_end} -> {label}")
 
     # Write CSV (append or overwrite)
     fieldnames = FEATURE_NAMES + ["best_solver"]

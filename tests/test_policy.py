@@ -52,17 +52,15 @@ def test_select_all_nan_raises():
 def test_extract_initial_features_keys():
     from features.extract import extract_initial_features
     r = np.linspace(0, 1, 51)
-    T0 = np.exp(-10 * r ** 2)
+    T0 = 1.0 - r ** 2
     feats = extract_initial_features(T0, r, alpha=0.5, nr=51, dt=0.001,
-                                     t_end=0.1, init_kind="gaussian")
+                                     t_end=0.1)
     expected_keys = {
-        "alpha", "nr", "dt", "t_end", "init_gaussian", "init_sharp",
+        "alpha", "nr", "dt", "t_end",
         "max_abs_gradient", "energy_content", "max_chi", "max_laplacian",
         "T_center", "gradient_sharpness", "chi_ratio", "problem_stiffness",
     }
     assert set(feats.keys()) == expected_keys
-    assert feats["init_gaussian"] == 1.0
-    assert feats["init_sharp"] == 0.0
     assert feats["alpha"] == 0.5
 
 
@@ -108,8 +106,8 @@ def test_select_with_ml(tmp_path):
     tree.save(model_path)
 
     r = np.linspace(0, 1, 51)
-    T0 = np.exp(-10 * r ** 2)
-    result = select_with_ml(T0, r, 0.5, 51, 0.001, 0.1, "gaussian", model_path)
+    T0 = 1.0 - r ** 2
+    result = select_with_ml(T0, r, 0.5, 51, 0.001, 0.1, model_path)
     assert result == "implicit_fdm"
 
 

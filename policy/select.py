@@ -32,7 +32,7 @@ def select_best(results: list[dict], lam: float = 0.1) -> dict:
 
 def select_with_ml(
     T0, r, alpha: float, nr: int, dt: float, t_end: float,
-    init_kind: str, model_path: str = "data/solver_model.npz",
+    model_path: str = "data/solver_model.npz",
 ) -> str:
     """Predict best solver using trained decision tree.
 
@@ -43,7 +43,7 @@ def select_with_ml(
     from policy.tree import NumpyDecisionTree
     from policy.train import FEATURE_NAMES
 
-    feats = extract_initial_features(T0, r, alpha, nr, dt, t_end, init_kind)
+    feats = extract_initial_features(T0, r, alpha, nr, dt, t_end)
     X = np.array([[feats[f] for f in FEATURE_NAMES]])
 
     tree = NumpyDecisionTree()

@@ -164,8 +164,8 @@ def slide_initial_conditions(prs):
         slide.shapes.add_picture(fig2, Inches(0.3), Inches(4.1), Inches(9.4), Inches(2.8))
 
     add_bullet_list(slide, Inches(5.0), Inches(1.3), Inches(4.7), Inches(2.5), [
-        "Gaussian: smooth, T\u2080 = exp(-10r\u00b2)",
-        "Sharp: step-like, localized peak",
+        "T\u2080(r) = 1 \u2212 r\u00b2 (parabolic)",
+        "Satisfies both BCs: T\u2080(1)=0, dT\u2080/dr|_{r=0}=0",
         "\u03b1 = 0: standard linear diffusion",
         "\u03b1 > 0: enhanced diffusion at steep gradients",
     ], font_size=14)
@@ -259,12 +259,11 @@ def slide_ml_features(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, BG_DARK)
     add_text_box(slide, Inches(0.6), Inches(0.3), Inches(8.8), Inches(0.7),
-                 "ML Feature Engineering (14 Features)", font_size=32, color=ACCENT, bold=True)
+                 "ML Feature Engineering (12 Features)", font_size=32, color=ACCENT, bold=True)
 
     categories = [
-        ("Problem Parameters (6)", ACCENT2, [
+        ("Problem Parameters (4)", ACCENT2, [
             "\u03b1, nr, dt, t_end",
-            "init_gaussian, init_sharp (one-hot)",
         ]),
         ("Physical Features from T\u2080 (5)", ACCENT2, [
             "max_abs_gradient, energy_content",
@@ -301,7 +300,7 @@ def slide_ml_workflow(prs):
 
     # 3-step flow
     steps = [
-        ("1", "Generate Data", "Parameter sweep\n~432 instances\n8 \u03b1 \u00d7 2 init \u00d7 3 nr\n\u00d7 3 dt \u00d7 3 t_end"),
+        ("1", "Generate Data", "Parameter sweep\n~216 instances\n8 \u03b1 \u00d7 3 nr\n\u00d7 3 dt \u00d7 3 t_end"),
         ("2", "Train Model", "CART decision tree\nGini impurity\nmax_depth = 5\nnumpy-only"),
         ("3", "Predict & Run", "Extract features\nPredict best solver\nRun only that one"),
     ]
@@ -410,7 +409,6 @@ def slide_cli_reference(prs):
         ("make benchmark", "Run benchmark (default \u03b1)"),
         ("make train", "Generate data + train ML model"),
         ("--alpha 0.5 1.0", "Custom \u03b1 values"),
-        ("--init sharp", "Sharp initial condition"),
         ("--nr 101 --dt 0.0005", "Higher resolution"),
         ("--generate-data", "Create training CSV (~432 samples)"),
         ("--use-ml-selector", "Predict best solver, run only that"),
@@ -519,7 +517,7 @@ def slide_dev_process_3(prs):
 
     steps = [
         ("Step 18", "ML Solver Selector",
-         "14 features, numpy-only decision tree, --generate-data / --use-ml-selector"),
+         "12 features, numpy-only decision tree, --generate-data / --use-ml-selector"),
         ("  +update", "Incremental Learning",
          "--update flag: append results to CSV + retrain \u2192 model improves over time"),
         ("Docs", "Tutorial & Figures",
