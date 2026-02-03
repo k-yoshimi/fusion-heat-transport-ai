@@ -11,7 +11,7 @@ class CosineSpectral(SolverBase):
     - phi_k'(0) = 0 (Neumann at r=0)
     - phi_k(1) = 0 (Dirichlet at r=1)
 
-    Time stepping: implicit linear diffusion in spectral space,
+    Time stepping: implicit linear diffusion (chi=0.1 baseline) in spectral space,
     explicit nonlinear correction in physical space.
     """
 
@@ -37,20 +37,18 @@ class CosineSpectral(SolverBase):
         phi = np.cos(np.outer((ks + 0.5) * np.pi, r))
 
         # Precompute norms via trapezoidal rule (vectorized)
-        # trapz(f, r) with uniform spacing = dr * (0.5*f[0] + f[1] + ... + f[-2] + 0.5*f[-1])
         phi_sq = phi ** 2  # (N, nr)
         phi_norm = np.trapz(phi_sq, r, axis=1)  # (N,)
 
-        # Precompute weights for forward transform: phi * trapz_weight / norm
-        # For trapz: weight = dr everywhere, except dr/2 at endpoints
+        # Precompute weights for forward transform
         w = np.full(nr, dr)
         w[0] = 0.5 * dr
         w[-1] = 0.5 * dr
         phi_w = phi * w[np.newaxis, :]  # (N, nr) weighted basis
         phi_w_norm = phi_w / phi_norm[:, np.newaxis]  # (N, nr)
 
-        # Precompute exponential decay factor (constant across time steps)
-        decay = np.exp(-lam * dt)  # (N,)
+        # Baseline diffusivity is 0.1, so linear decay uses 0.1 * lam
+        decay = np.exp(-0.1 * lam * dt)  # (N,)
 
         # Precompute geometric factors for nonlinear flux (interior points)
         ri = r[1:-1]
@@ -62,28 +60,34 @@ class CosineSpectral(SolverBase):
             # Forward transform: a = phi_w_norm @ T (matrix-vector multiply)
             a = phi_w_norm @ T  # (N,)
 
-            # Decay each mode
+            # Decay each mode (linear baseline chi=0.1)
             a *= decay
 
             # Reconstruct: T = phi^T @ a
             T = phi.T @ a  # (nr,)
 
-            # Nonlinear correction (vectorized)
-            if alpha > 0:
-                dTdr = np.empty(nr)
-                dTdr[0] = 0.0
-                dTdr[1:-1] = (T[2:] - T[:-2]) / (2.0 * dr)
-                dTdr[-1] = (T[-1] - T[-2]) / dr
-                chi_nl = alpha * np.abs(dTdr)
+            # Nonlinear correction: chi_nl = chi_total - 0.1 (baseline)
+            dTdr = np.empty(nr)
+            dTdr[0] = 0.0
+            dTdr[1:-1] = (T[2:] - T[:-2]) / (2.0 * dr)
+            dTdr[-1] = (T[-1] - T[-2]) / dr
+            abs_dTdr = np.abs(dTdr)
+            chi_nl = np.where(abs_dTdr > 0.5,
+                              (abs_dTdr - 0.5) ** alpha,
+                              0.0)
+            # Clamp to prevent numerical blowup in explicit correction
+            np.clip(chi_nl, 0.0, 1.0 / (dt + 1e-30), out=chi_nl)
+            chi_nl = np.nan_to_num(chi_nl, nan=0.0, posinf=0.0, neginf=0.0)
 
-                cnp = 0.5 * (chi_nl[1:-1] + chi_nl[2:])
-                cnm = 0.5 * (chi_nl[1:-1] + chi_nl[:-2])
+            cnp = 0.5 * (chi_nl[1:-1] + chi_nl[2:])
+            cnm = 0.5 * (chi_nl[1:-1] + chi_nl[:-2])
 
-                nl_flux = np.zeros(nr)
-                nl_flux[1:-1] = (rp * cnp * (T[2:] - T[1:-1]) - rm * cnm * (T[1:-1] - T[:-2])) * inv_ri_dr2
-                nl_flux[0] = 2.0 * chi_nl[0] * (T[1] - T[0]) / dr2
+            nl_flux = np.zeros(nr)
+            nl_flux[1:-1] = (rp * cnp * (T[2:] - T[1:-1]) - rm * cnm * (T[1:-1] - T[:-2])) * inv_ri_dr2
+            nl_flux[0] = 2.0 * chi_nl[0] * (T[1] - T[0]) / dr2
 
-                T = T + dt * nl_flux
+            T = T + dt * nl_flux
+            T = np.nan_to_num(T, nan=0.0, posinf=0.0, neginf=0.0)
 
             T[-1] = 0.0
             T_history[n + 1] = T

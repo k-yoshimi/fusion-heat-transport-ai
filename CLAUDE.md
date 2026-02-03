@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Fusion heat transport PDE benchmark — compares numerical solvers (FDM, spectral, PINN) for the 1D radial heat equation with nonlinear diffusivity χ = 1 + α|∂T/∂r|.
+Fusion heat transport PDE benchmark — compares numerical solvers (FDM, spectral, PINN) for the 1D radial heat equation with nonlinear diffusivity χ(|T'|) = (|T'|-0.5)^α + 0.1 if |T'|>0.5, else χ = 0.1.
 
 ## Build & Test Commands
 

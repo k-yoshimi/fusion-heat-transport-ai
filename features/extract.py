@@ -26,8 +26,12 @@ def laplacian(T: np.ndarray, r: np.ndarray) -> np.ndarray:
 
 
 def chi(dTdr: np.ndarray, alpha: float) -> np.ndarray:
-    """Nonlinear thermal diffusivity: chi = 1 + alpha * |dT/dr|."""
-    return 1.0 + alpha * np.abs(dTdr)
+    """Nonlinear thermal diffusivity: chi = (|T'|-0.5)^alpha + 0.1 if |T'|>0.5, else 0.1."""
+    abs_dTdr = np.abs(dTdr)
+    result = np.full_like(abs_dTdr, 0.1)
+    mask = abs_dTdr > 0.5
+    result[mask] = (abs_dTdr[mask] - 0.5) ** alpha + 0.1
+    return result
 
 
 def max_abs_gradient(T: np.ndarray, r: np.ndarray) -> float:

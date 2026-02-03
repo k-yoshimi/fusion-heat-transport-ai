@@ -6,7 +6,9 @@ Benchmark suite for comparing numerical solvers of the 1D radial heat transport 
 ∂T/∂t = (1/r) ∂/∂r (r χ(|∂T/∂r|) ∂T/∂r)
 ```
 
-where χ = 1 + α|∂T/∂r| is a nonlinear thermal diffusivity.
+where the nonlinear thermal diffusivity is:
+- χ(|T'|) = (|T'| - 0.5)^α + 0.1  if |T'| > 0.5
+- χ = 0.1  otherwise
 
 **Boundary conditions:** Neumann ∂T/∂r = 0 at r=0, Dirichlet T=0 at r=1.
 

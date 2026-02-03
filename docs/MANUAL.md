@@ -243,7 +243,7 @@ python -m app.run_benchmark --use-ml-selector --alpha 1.5
 | Problem param | `init_sharp` | 1 if sharp IC, 0 otherwise |
 | Physical | `max_abs_gradient` | max\|dT₀/dr\| |
 | Physical | `energy_content` | ∫T₀·r·dr |
-| Physical | `max_chi` | max(1 + α\|dT₀/dr\|) |
+| Physical | `max_chi` | max χ(|dT₀/dr|) |
 | Physical | `max_laplacian` | max\|d²T₀/dr²\| |
 | Physical | `T_center` | T₀(r=0) |
 | Derived | `gradient_sharpness` | max_abs_gradient / T_center |
@@ -318,11 +318,13 @@ dT/dt = (1/r) d/dr (r chi dT/dr)
 ### Nonlinear diffusivity
 
 ```
-chi(|dT/dr|) = 1 + alpha * |dT/dr|
+chi(|T'|) = (|T'| - 0.5)^alpha + 0.1    if |T'| > 0.5
+chi(|T'|) = 0.1                           if |T'| <= 0.5
 ```
 
-- `alpha = 0`: Linear diffusion (analytical solution exists)
+- `alpha = 0`: χ = 1.1 (|T'|>0.5) or 0.1 (|T'|≤0.5), step-like diffusivity
 - `alpha > 0`: Enhanced diffusion in steep-gradient regions (anomalous transport model for plasmas)
+- Threshold at |T'| = 0.5: diffusivity activates only above a critical gradient
 
 ### Boundary conditions
 

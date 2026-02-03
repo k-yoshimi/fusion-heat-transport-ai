@@ -44,9 +44,9 @@ def fig1_initial_conditions():
 
 def fig2_time_evolution():
     """Plot temperature evolution for alpha=0 and alpha=1."""
-    r = np.linspace(0, 1, 101)
+    r = np.linspace(0, 1, 201)
     T0 = make_initial(r, "gaussian")
-    dt, t_end = 0.001, 0.2
+    dt, t_end = 0.0002, 0.2
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
 
@@ -76,9 +76,9 @@ def fig2_time_evolution():
 
 def fig3_solver_comparison():
     """Compare solver final profiles and errors for alpha=1.0."""
-    r = np.linspace(0, 1, 51)
+    r = np.linspace(0, 1, 101)
     T0 = make_initial(r, "gaussian")
-    alpha, dt, t_end = 1.0, 0.001, 0.1
+    alpha, dt, t_end = 1.0, 0.0005, 0.1
 
     T_ref = compute_reference(T0, r, dt, t_end, alpha)
 
@@ -204,7 +204,7 @@ def fig5_nonlinear_diffusivity():
         ax.plot(r, chi_vals, linewidth=1.5, label=f"α={alpha}")
     ax.set_xlabel("r")
     ax.set_ylabel("χ(|dT/dr|)")
-    ax.set_title("Nonlinear Diffusivity χ = 1 + α|dT/dr|")
+    ax.set_title("Nonlinear Diffusivity χ(|T'|)")
     ax.legend()
     ax.grid(True, alpha=0.3)
 

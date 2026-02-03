@@ -40,11 +40,11 @@ Example output:
 ```
 Computing reference for alpha=0.0...
   Running implicit_fdm (alpha=0.0)...
-    L2=0.000513, Linf=0.000182, time=0.0021s
+    L2=0.130432, Linf=0.0486736, time=0.0024s
   Running spectral_cosine (alpha=0.0)...
-    L2=0.00839, Linf=0.00495, time=0.0045s
+    L2=0.203631, Linf=0.0652731, time=0.0024s
   Running pinn_stub (alpha=0.0)...
-    L2=nan, Linf=nan, time=0.0001s
+    L2=nan, Linf=nan, time=0.0003s
 
 Best for alpha=0.0: implicit_fdm
 ```
@@ -55,7 +55,7 @@ The following chart shows L2 error and wall time for each solver across differen
 
 Key observations:
 - **implicit_fdm** consistently achieves the lowest L2 error across all α values
-- **spectral_cosine** is faster but less accurate, especially for large α
+- **spectral_cosine** works for small α but becomes unstable for large α with the threshold-based χ
 - **pinn_stub** returns NaN without PyTorch installed
 
 ### 1.2 Customizing parameters
@@ -102,14 +102,20 @@ The benchmark solves the 1D radial heat equation in cylindrical geometry:
 ∂T/∂t = (1/r) ∂/∂r (r χ ∂T/∂r)
 ```
 
-where the thermal diffusivity is nonlinear:
+where the thermal diffusivity has a threshold-based nonlinearity:
 
 ```
-χ = 1 + α|∂T/∂r|
+χ(|T'|) = (|T'| - 0.5)^α + 0.1    if |T'| > 0.5
+χ(|T'|) = 0.1                       if |T'| ≤ 0.5
 ```
 
-- **α = 0**: Standard linear diffusion. Temperature smoothly decays.
-- **α > 0**: Enhanced diffusion where gradients are steep. Models anomalous transport in fusion plasmas.
+Key properties:
+- **Threshold behavior**: diffusivity activates only when the gradient exceeds 0.5
+- **α = 0**: Step-like diffusivity — 1.1 above threshold, 0.1 below
+- **α > 0**: Gradual onset — enhanced diffusion grows as (|T'| - 0.5)^α above the threshold
+- **Baseline**: χ = 0.1 everywhere (10× slower than standard diffusion with χ = 1)
+
+This models anomalous transport in fusion plasmas, where transport is suppressed below a critical gradient and enhanced above it.
 
 Boundary conditions:
 - r = 0: Symmetry (∂T/∂r = 0)
@@ -119,11 +125,13 @@ The two available initial conditions:
 
 ![Initial Conditions](figures/initial_conditions.png)
 
-The nonlinear diffusivity χ increases where the temperature gradient is steep. Larger α amplifies this effect:
+The nonlinear diffusivity χ activates only where |dT/dr| > 0.5. The α parameter controls how steeply χ rises above the threshold:
 
 ![Nonlinear Diffusivity](figures/nonlinear_diffusivity.png)
 
-The following figure shows how the temperature profile evolves over time. With α=1.0 (right), the enhanced diffusion flattens the profile faster near the center:
+Note the step-like profile for α = 0.0 (blue) — χ jumps from 0.1 to 1.1 at the threshold. For α > 0, χ rises smoothly above the threshold.
+
+The following figure shows how the temperature profile evolves over time. With α = 1.0 (right), the enhanced diffusion above the gradient threshold flattens the profile faster in steep-gradient regions:
 
 ![Temperature Evolution](figures/time_evolution.png)
 
@@ -149,7 +157,23 @@ print(f"Solution shape: {T_ref.shape}")  # (time_steps+1, spatial_points)
 print(f"Final center temperature: {T_ref[-1, 0]:.4f}")
 ```
 
-### 2.2 Feature extraction
+### 2.2 Understanding χ in Python
+
+You can inspect the diffusivity profile directly:
+
+```python
+from features.extract import gradient, chi
+
+dTdr = gradient(T0_gauss, r)
+print(f"Max |dT/dr|: {np.max(np.abs(dTdr)):.3f}")
+
+# Compute chi for different alpha values
+for alpha in [0.0, 0.5, 1.0, 2.0]:
+    chi_vals = chi(dTdr, alpha)
+    print(f"  alpha={alpha}: chi_min={chi_vals.min():.3f}, chi_max={chi_vals.max():.3f}")
+```
+
+### 2.3 Feature extraction
 
 The `features/extract.py` module computes physical quantities from temperature profiles:
 
@@ -173,7 +197,7 @@ from metrics.accuracy import compute_errors
 
 r = np.linspace(0, 1, 51)
 T0 = make_initial(r, "gaussian")
-alpha = 1.0
+alpha = 0.5  # Use moderate alpha for stable comparison
 
 # Reference solution
 T_ref = compute_reference(T0, r, dt=0.001, t_end=0.1, alpha=alpha)
@@ -194,9 +218,11 @@ for SolverClass in [ImplicitFDM, CosineSpectral]:
     print(f"{solver.name}: L2={errs['l2']:.6g}, time={wall:.4f}s")
 ```
 
-The figure below shows the final temperature profile and pointwise error for α=1.0. The implicit FDM solver closely tracks the reference, while the spectral solver shows larger deviations:
+The figure below shows the final temperature profile and pointwise error for α = 1.0. The implicit FDM solver closely tracks the reference, while the spectral solver shows larger deviations due to the threshold-based χ:
 
 ![Solver Comparison](figures/solver_comparison.png)
+
+> **Note**: The spectral solver can become numerically unstable for large α with the new χ formula, since the explicit nonlinear correction step may amplify errors near the gradient threshold. The implicit FDM solver handles this robustly because it solves the full system implicitly.
 
 ---
 
@@ -216,6 +242,13 @@ This creates `data/training_data.csv` with ~432 rows. Each row contains:
 - 14 features (problem parameters + initial condition properties)
 - The label: which solver scored best
 
+The sweep covers:
+- α: 0.0, 0.1, 0.2, 0.5, 0.8, 1.0, 1.5, 2.0
+- init: gaussian, sharp
+- nr: 31, 51, 71
+- dt: 0.0005, 0.001, 0.002
+- t_end: 0.05, 0.1, 0.2
+
 Inspect the data:
 
 ```bash
@@ -234,10 +267,10 @@ Or use the Makefile shortcut (generates data + trains in one step):
 make train
 ```
 
-Output:
+The training output shows accuracy on the training set:
 
 ```
-Training accuracy: 95.8% (414/432)
+Training accuracy: XX.X% (XXX/XXX)
 Model saved to data/solver_model.npz
 ```
 
@@ -247,13 +280,6 @@ Now instead of running all solvers, predict the best one and run only that:
 
 ```bash
 python -m app.run_benchmark --use-ml-selector --alpha 1.5
-```
-
-Output:
-
-```
-ML predicted best solver for alpha=1.5: implicit_fdm
-  L2=0.00234, Linf=0.000891, time=0.0023s
 ```
 
 Compare with the full benchmark (runs all 3 solvers):
@@ -268,21 +294,21 @@ The ML selector should pick the same solver that the full benchmark identifies a
 
 The ML model uses 14 features extracted before solving:
 
-| Feature | What it measures |
-|---------|------------------|
-| `alpha` | Nonlinearity strength |
-| `nr`, `dt`, `t_end` | Discretization parameters |
-| `init_gaussian`, `init_sharp` | Initial condition type (one-hot) |
-| `max_abs_gradient` | Steepest gradient in T₀ |
-| `energy_content` | Total thermal energy ∫T₀·r·dr |
-| `max_chi` | Peak diffusivity at t=0 |
-| `max_laplacian` | Peak curvature in T₀ |
-| `T_center` | Central temperature |
-| `gradient_sharpness` | Gradient relative to peak temperature |
-| `chi_ratio` | Ratio of max to min diffusivity |
-| `problem_stiffness` | α × max_gradient (nonlinear difficulty) |
+| Category | Feature | What it measures |
+|----------|---------|------------------|
+| Problem | `alpha` | Nonlinearity exponent |
+| Problem | `nr`, `dt`, `t_end` | Discretization parameters |
+| Problem | `init_gaussian`, `init_sharp` | Initial condition type (one-hot) |
+| Physical | `max_abs_gradient` | Steepest gradient in T₀ — determines if χ threshold (0.5) is exceeded |
+| Physical | `energy_content` | Total thermal energy ∫T₀·r·dr |
+| Physical | `max_chi` | Peak diffusivity at t=0 — reflects threshold activation |
+| Physical | `max_laplacian` | Peak curvature in T₀ |
+| Physical | `T_center` | Central temperature |
+| Derived | `gradient_sharpness` | max_abs_gradient / T_center |
+| Derived | `chi_ratio` | max_chi / min_chi — how strongly the threshold activates |
+| Derived | `problem_stiffness` | α × max_gradient — nonlinear difficulty |
 
-These features capture the "difficulty" of the problem without solving it.
+These features capture the "difficulty" of the problem without solving it. In particular, `max_abs_gradient` relative to the threshold 0.5 determines whether the nonlinear regime is active, and `chi_ratio` measures how strong the nonlinear effect is.
 
 ---
 
@@ -310,19 +336,17 @@ python -m app.run_benchmark --alpha 0.3 --init sharp --update
 python -m app.run_benchmark --alpha 1.2 --nr 71 --dt 0.0005 --update
 ```
 
-Output:
+Example output:
 
 ```
 Computing reference for alpha=0.3...
   Running implicit_fdm (alpha=0.3)...
-    L2=0.00312, Linf=0.00104, time=0.0019s
-  ...
-
+    ...
 Best for alpha=0.3: implicit_fdm
 
 Appended 1 samples to data/training_data.csv
 Retraining model...
-Training accuracy: 96.1% (417/434)
+Training accuracy: XX.X% (XXX/XXX)
 Model saved to data/solver_model.npz
 ```
 
@@ -382,6 +406,10 @@ class YourSolver(SolverBase):
 
         Returns:
             T_history: 2D array (n_timesteps+1, n_grid_points)
+
+        Note: Use self.chi(dTdr, alpha) to compute the diffusivity.
+              This returns (|dTdr|-0.5)^alpha + 0.1 where |dTdr|>0.5,
+              and 0.1 otherwise.
         """
         nsteps = int(t_end / dt)
         T = T0.copy()
@@ -432,6 +460,35 @@ def test_your_solver_basic():
 
 ---
 
+## Appendix: The Diffusivity Formula
+
+The nonlinear diffusivity in this project has a threshold structure:
+
+```
+χ(|T'|) = (|T'| - 0.5)^α + 0.1    if |T'| > 0.5
+χ(|T'|) = 0.1                       if |T'| ≤ 0.5
+```
+
+This is implemented in two places:
+- `features/extract.py:chi()` — for feature extraction
+- `solvers/base.py:SolverBase.chi()` — used by all solvers
+
+The formula has the following physical interpretation:
+
+| Regime | Condition | χ value | Meaning |
+|--------|-----------|---------|---------|
+| Sub-threshold | \|T'\| ≤ 0.5 | 0.1 | Slow background diffusion |
+| Threshold | \|T'\| = 0.5 | 0.1 | Activation point |
+| Super-threshold | \|T'\| > 0.5 | (|T'|-0.5)^α + 0.1 | Enhanced transport |
+
+The parameter α controls the steepness of the enhancement:
+- **α = 0**: χ jumps to 1.1 immediately above threshold (step function)
+- **α = 0.5**: χ grows as √(|T'| - 0.5), moderate onset
+- **α = 1**: χ grows linearly above threshold
+- **α = 2**: χ grows quadratically — strong enhancement for large gradients
+
+---
+
 ## Summary of Commands
 
 | Command | Description |
@@ -447,3 +504,4 @@ def test_your_solver_basic():
 | `python -m policy.train` | Train model from existing data |
 | `python -m policy.train --generate` | Generate data + train |
 | `python docs/generate_figures.py` | Regenerate tutorial figures |
+| `python docs/generate_slides.py` | Regenerate presentation slides |

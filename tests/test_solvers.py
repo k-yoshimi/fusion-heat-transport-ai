@@ -31,7 +31,8 @@ def test_fdm_neumann_bc(setup):
     """Check dT/dr ≈ 0 at r=0."""
     T0, r = setup
     solver = ImplicitFDM()
-    T_hist = solver.solve(T0, r, dt=0.001, t_end=0.01, alpha=0.0)
+    # Run longer to allow diffusion (chi=0.1 baseline is slow)
+    T_hist = solver.solve(T0, r, dt=0.001, t_end=0.1, alpha=0.0)
     dr = r[1] - r[0]
     dTdr_0 = (T_hist[-1, 1] - T_hist[-1, 0]) / dr
     assert abs(dTdr_0) < 0.5  # approximately zero gradient at center

@@ -25,10 +25,14 @@ def test_laplacian_parabola(grid):
     np.testing.assert_allclose(d2T[1:-1], -2.0, atol=1e-2)
 
 
-def test_chi_linear():
-    dTdr = np.array([0.0, 1.0, 2.0])
-    result = chi(dTdr, alpha=0.5)
-    np.testing.assert_allclose(result, [1.0, 1.5, 2.0])
+def test_chi_nonlinear():
+    dTdr = np.array([0.0, 0.3, 1.0, 2.0])
+    result = chi(dTdr, alpha=1.0)
+    # |T'|=0.0 <= 0.5 -> 0.1
+    # |T'|=0.3 <= 0.5 -> 0.1
+    # |T'|=1.0 > 0.5 -> (1.0-0.5)^1 + 0.1 = 0.6
+    # |T'|=2.0 > 0.5 -> (2.0-0.5)^1 + 0.1 = 1.6
+    np.testing.assert_allclose(result, [0.1, 0.1, 0.6, 1.6])
 
 
 def test_max_abs_gradient(grid):

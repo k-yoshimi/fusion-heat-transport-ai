@@ -8,7 +8,7 @@ class SolverBase(ABC):
     """Base class for 1D radial heat transport solvers.
 
     Solves: ∂T/∂t = (1/r) ∂/∂r (r χ(|∂T/∂r|) ∂T/∂r)
-    where χ = 1 + α|∂T/∂r|
+    where χ(|T'|) = (|T'| - 0.5)^α + 0.1  if |T'| > 0.5, else 0.1
 
     BCs: Neumann ∂T/∂r=0 at r=0, Dirichlet T=0 at r=1.
     """
@@ -44,5 +44,9 @@ class SolverBase(ABC):
 
     @staticmethod
     def chi(dTdr: np.ndarray, alpha: float) -> np.ndarray:
-        """Nonlinear diffusivity χ = 1 + α|∂T/∂r|."""
-        return 1.0 + alpha * np.abs(dTdr)
+        """Nonlinear diffusivity χ(|T'|) = (|T'|-0.5)^α + 0.1 if |T'|>0.5, else 0.1."""
+        abs_dTdr = np.abs(dTdr)
+        result = np.full_like(abs_dTdr, 0.1)
+        mask = abs_dTdr > 0.5
+        result[mask] = (abs_dTdr[mask] - 0.5) ** alpha + 0.1
+        return result
