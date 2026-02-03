@@ -20,13 +20,13 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from collections import Counter
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import numpy as np
 from policy.train import FEATURE_NAMES
 from policy.tree import NumpyDecisionTree
 
-DATADIR = os.path.join(os.path.dirname(__file__), "..", "data")
+DATADIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 
 
 # =============================================================================

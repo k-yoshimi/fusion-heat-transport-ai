@@ -9,7 +9,7 @@ import sys
 import os
 import csv
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import numpy as np
 import matplotlib
@@ -20,8 +20,8 @@ from collections import Counter
 from policy.train import generate_training_data, train_model, FEATURE_NAMES
 from policy.tree import NumpyDecisionTree
 
-FIGDIR = os.path.join(os.path.dirname(__file__), "figures")
-DATADIR = os.path.join(os.path.dirname(__file__), "..", "data")
+FIGDIR = os.path.join(os.path.dirname(__file__), "..", "figures")
+DATADIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 
 
 def load_training_data(path):

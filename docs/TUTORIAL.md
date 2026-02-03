@@ -493,3 +493,59 @@ The parameter α controls the steepness of the enhancement:
 | `python -m policy.train --generate` | Generate data + train |
 | `python docs/generate_figures.py` | Regenerate tutorial figures |
 | `python docs/generate_slides.py` | Regenerate presentation slides |
+| `python docs/analysis/experiment_framework.py -i` | Interactive experiment framework |
+| `python docs/analysis/experiment_framework.py --cycles 3` | Run 3 verification cycles |
+
+---
+
+## Part 7: Hypothesis-Driven Analysis
+
+For systematic solver analysis, use the experiment framework.
+
+### 7.1 Quick start
+
+```bash
+# Run a stability mapping experiment
+python docs/analysis/experiment_framework.py -r stability_map
+
+# Analyze results
+python docs/analysis/experiment_framework.py --analyze
+```
+
+### 7.2 Verification cycles
+
+Run multiple hypothesis verification cycles:
+
+```bash
+python docs/analysis/experiment_framework.py --cycles 3
+```
+
+Each cycle runs experiments, tests hypotheses, and updates confidence scores.
+
+### 7.3 Interactive mode
+
+```bash
+python docs/analysis/experiment_framework.py -i
+```
+
+Commands:
+- `list` - Show predefined experiments
+- `run stability_map` - Run an experiment
+- `analyze` - Analyze all data
+- `test H1` - Test a hypothesis
+- `hypo` - List hypotheses
+- `hypo add H8 "Your hypothesis"` - Add new hypothesis
+- `report` - Generate markdown report
+
+### 7.4 Generate final report
+
+```bash
+python docs/analysis/experiment_framework.py --report
+```
+
+Creates `data/experiment_report.md` with:
+- Solver performance summary
+- Hypothesis verification results
+- Conclusions and next steps
+
+See [ANALYSIS_TUTORIAL.md](ANALYSIS_TUTORIAL.md) for detailed documentation.

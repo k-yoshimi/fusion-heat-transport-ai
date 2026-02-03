@@ -29,7 +29,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from collections import Counter
 import json
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import numpy as np
 from policy.train import FEATURE_NAMES
@@ -579,7 +579,7 @@ class AdvancedCoordinator:
 
 def main():
     import csv
-    DATADIR = os.path.join(os.path.dirname(__file__), "..", "data")
+    DATADIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
     data_path = os.path.join(DATADIR, "training_data.csv")
 
     print("Loading data...")

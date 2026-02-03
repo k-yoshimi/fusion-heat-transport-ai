@@ -82,26 +82,56 @@ The best solver is selected by minimizing:
 score = L2_error + λ × wall_time
 ```
 
-where λ is configurable (default 0.1). The ML selector uses a numpy-only decision tree trained on 14 features (problem parameters + initial condition properties) to predict the best solver before running any computation. See `policy/select.py`.
+where λ is configurable (default 0.1). The ML selector uses a numpy-only decision tree trained on 12 features (problem parameters + initial condition properties) to predict the best solver before running any computation. See `policy/select.py`.
+
+## Hypothesis-Driven Analysis
+
+An interactive experiment framework for systematic solver analysis:
+
+```bash
+# Run 3 hypothesis verification cycles
+python docs/analysis/experiment_framework.py --cycles 3
+
+# Interactive mode
+python docs/analysis/experiment_framework.py --interactive
+
+# Generate final report
+python docs/analysis/experiment_framework.py --report
+```
+
+Features:
+- Predefined experiments (stability_map, ic_comparison, linear_regime, fine_sweep)
+- Hypothesis tracking with verification history
+- Automatic report generation in Markdown
+- Multi-agent parallel analysis
 
 ## Project Structure
 
 ```
-app/              CLI entrypoint
-features/         PDE feature extraction (gradients, energy, etc.)
-solvers/          Solver implementations (FDM, spectral, PINN)
-metrics/          Error metrics (L2, L∞)
-policy/           Solver selection policy + ML decision tree
-reports/          CSV + markdown report generation
-tests/            Unit tests
-outputs/          Generated benchmark results (gitignored)
-data/             Training data + trained model (gitignored)
+app/                  CLI entrypoint
+features/             PDE feature extraction (gradients, energy, etc.)
+solvers/              Solver implementations (FDM, spectral, PINN)
+metrics/              Error metrics (L2, L∞)
+policy/               Solver selection policy + ML decision tree
+reports/              CSV + markdown report generation
+tests/                Unit tests
+outputs/              Generated benchmark results (gitignored)
+data/                 Training data + trained model (gitignored)
+docs/
+  ├── analysis/       Hypothesis-driven experiment tools
+  │   ├── experiment_framework.py   # Main experiment framework
+  │   ├── multi_agent_analysis.py   # Multi-agent analysis system
+  │   ├── parallel_multi_agent.py   # Parallel execution
+  │   └── verify_hypotheses.py      # Quick hypothesis verification
+  ├── figures/        Generated figures for documentation
+  └── TUTORIAL.md     Step-by-step guide
 ```
 
 ## Documentation
 
 - [Tutorial](docs/TUTORIAL.md) — Step-by-step guide from first benchmark to ML selector
 - [Manual](docs/MANUAL.md) — Detailed reference for all features
+- [Analysis Tutorial](docs/ANALYSIS_TUTORIAL.md) — Hypothesis-driven experiment framework guide
 
 ## Reference Solution
 

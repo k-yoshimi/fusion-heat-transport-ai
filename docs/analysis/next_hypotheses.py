@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from enum import Enum
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import numpy as np
 from policy.train import FEATURE_NAMES
@@ -50,7 +50,7 @@ class Gap:
 
 def load_current_findings():
     """Load and summarize current analysis findings."""
-    DATADIR = os.path.join(os.path.dirname(__file__), "..", "data")
+    DATADIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
     data_path = os.path.join(DATADIR, "training_data.csv")
 
     with open(data_path) as f:
