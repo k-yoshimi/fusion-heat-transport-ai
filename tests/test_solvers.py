@@ -5,13 +5,14 @@ import pytest
 from solvers.fdm.implicit import ImplicitFDM
 from solvers.spectral.cosine import CosineSpectral
 from solvers.pinn.stub import PINNStub
+from features.profiles import make_profile
 
 
 @pytest.fixture
 def setup():
     nr = 51
     r = np.linspace(0, 1, nr)
-    T0 = 1.0 - r**2
+    T0 = make_profile(r, "parabolic")  # Default: 1 - r^2
     return T0, r
 
 

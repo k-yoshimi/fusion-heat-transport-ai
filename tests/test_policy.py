@@ -59,8 +59,10 @@ def test_extract_initial_features_keys():
         "alpha", "nr", "dt", "t_end",
         "max_abs_gradient", "energy_content", "max_chi", "max_laplacian",
         "T_center", "gradient_sharpness", "chi_ratio", "problem_stiffness",
+        "half_max_radius", "profile_centroid", "gradient_slope", "profile_width",
     }
     assert set(feats.keys()) == expected_keys
+    assert len(feats) == 16
     assert feats["alpha"] == 0.5
 
 

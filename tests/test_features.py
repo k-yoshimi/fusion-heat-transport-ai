@@ -2,7 +2,11 @@
 
 import numpy as np
 import pytest
-from features.extract import gradient, laplacian, chi, max_abs_gradient, zero_crossings, energy_content, extract_all
+from features.extract import (
+    gradient, laplacian, chi, max_abs_gradient, zero_crossings, energy_content,
+    extract_all, half_max_radius, profile_centroid, gradient_slope, profile_width,
+    extract_initial_features,
+)
 
 
 @pytest.fixture
@@ -67,3 +71,91 @@ def test_extract_all_keys(grid):
     expected_keys = {"max_abs_gradient", "zero_crossings", "energy_content",
                      "max_chi", "min_chi", "max_laplacian", "T_center", "T_edge"}
     assert set(feats.keys()) == expected_keys
+
+
+# --- Tests for new profile shape features ---
+
+
+def test_half_max_radius_parabola(grid):
+    """T = 1 - r^2: T = 0.5 when r^2 = 0.5, so r = sqrt(0.5) ≈ 0.707."""
+    T = 1.0 - grid**2
+    r_half = half_max_radius(T, grid)
+    assert r_half == pytest.approx(np.sqrt(0.5), abs=0.02)
+
+
+def test_half_max_radius_linear(grid):
+    """T = 1 - r: T = 0.5 when r = 0.5."""
+    T = 1.0 - grid
+    r_half = half_max_radius(T, grid)
+    assert r_half == pytest.approx(0.5, abs=0.02)
+
+
+def test_half_max_radius_constant_zero():
+    """If T is constant zero, should return 1.0."""
+    r = np.linspace(0, 1, 101)
+    T = np.zeros_like(r)
+    r_half = half_max_radius(T, r)
+    assert r_half == 1.0
+
+
+def test_profile_centroid_parabola(grid):
+    """Test centroid calculation for parabolic profile."""
+    T = 1.0 - grid**2
+    centroid = profile_centroid(T, grid)
+    # Centroid should be somewhere between 0 and 1
+    assert 0 < centroid < 1
+
+
+def test_profile_centroid_linear(grid):
+    """For linear profile, centroid is closer to center."""
+    T = 1.0 - grid
+    centroid = profile_centroid(T, grid)
+    assert 0.3 < centroid < 0.7
+
+
+def test_gradient_slope_parabola(grid):
+    """T = 1 - r^2 => dT/dr = -2r, |dT/dr| = 2r which increases with r."""
+    T = 1.0 - grid**2
+    slope = gradient_slope(T, grid)
+    # Slope should be positive since |gradient| increases with r
+    assert slope > 0
+
+
+def test_gradient_slope_linear(grid):
+    """T = 1 - r => dT/dr = -1, constant gradient."""
+    T = 1.0 - grid
+    slope = gradient_slope(T, grid)
+    # Slope should be near zero for constant gradient
+    assert abs(slope) < 0.1
+
+
+def test_profile_width_parabola(grid):
+    """Test width calculation for parabolic profile."""
+    T = 1.0 - grid**2
+    width = profile_width(T, grid)
+    # Width should be between 0 and 1
+    assert 0 < width < 1
+
+
+def test_profile_width_different_shapes():
+    """Profile width distinguishes different shapes.
+
+    Note: 1-r^4 is flatter in center than 1-r^2, so it has more mass at
+    larger radii, leading to a larger effective width.
+    """
+    r = np.linspace(0, 1, 101)
+    T_parabola = 1.0 - r**2  # n=2
+    T_flat_center = 1.0 - r**4  # n=4, flatter center, steeper edge
+    # The r^4 profile is flatter near center, so its width is larger
+    assert profile_width(T_flat_center, r) > profile_width(T_parabola, r)
+
+
+def test_extract_initial_features_has_16_keys(grid):
+    """extract_initial_features should return 16 features."""
+    T0 = 1.0 - grid**2
+    feats = extract_initial_features(T0, grid, alpha=0.5, nr=len(grid),
+                                     dt=0.001, t_end=0.1)
+    assert len(feats) == 16
+    # Check new keys are present
+    new_keys = {"half_max_radius", "profile_centroid", "gradient_slope", "profile_width"}
+    assert new_keys.issubset(set(feats.keys()))

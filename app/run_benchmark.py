@@ -9,13 +9,24 @@ from solvers.spectral.cosine import CosineSpectral
 from solvers.pinn.stub import PINNStub
 from metrics.accuracy import compute_errors
 from features.extract import extract_all, extract_initial_features
+from features.profiles import make_profile, parse_profile_params, get_available_profiles
 from policy.select import select_best
 from reports.generate import write_csv, write_markdown
 
 
-def make_initial(r: np.ndarray) -> np.ndarray:
-    """Create initial temperature profile: T₀(r) = 1 - r²."""
-    return 1.0 - r**2
+def make_initial(r: np.ndarray, profile_name: str = "parabolic",
+                 profile_params: dict = None) -> np.ndarray:
+    """Create initial temperature profile.
+
+    Args:
+        r: Radial coordinate array
+        profile_name: Profile type (parabolic, gaussian, flat_top, cosine, linear)
+        profile_params: Optional parameter overrides for the profile
+
+    Returns:
+        Initial temperature profile T0(r)
+    """
+    return make_profile(r, profile_name, profile_params)
 
 
 def compute_reference(T0, r, dt, t_end, alpha):
@@ -31,13 +42,14 @@ def compute_reference(T0, r, dt, t_end, alpha):
     return T_hist[:, indices]
 
 
-def run(alpha_list, nr=51, dt=0.001, t_end=0.1):
+def run(alpha_list, nr=51, dt=0.001, t_end=0.1,
+        profile_name="parabolic", profile_params=None):
     """Run benchmark for given alpha values."""
     all_results = []
 
     for alpha in alpha_list:
         r = np.linspace(0, 1, nr)
-        T0 = make_initial(r)
+        T0 = make_initial(r, profile_name, profile_params)
 
         # Reference solution
         print(f"Computing reference for alpha={alpha}...")
@@ -93,7 +105,8 @@ def run(alpha_list, nr=51, dt=0.001, t_end=0.1):
 
 
 def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1,
-                    model_path="data/solver_model.npz"):
+                    model_path="data/solver_model.npz",
+                    profile_name="parabolic", profile_params=None):
     """Run benchmark using ML-predicted best solver only."""
     from policy.select import select_with_ml
 
@@ -101,7 +114,7 @@ def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1,
 
     for alpha in alpha_list:
         r = np.linspace(0, 1, nr)
-        T0 = make_initial(r)
+        T0 = make_initial(r, profile_name, profile_params)
 
         predicted = select_with_ml(T0, r, alpha, nr, dt, t_end, model_path)
         print(f"ML predicted best solver for alpha={alpha}: {predicted}")
@@ -127,7 +140,8 @@ def run_ml_selector(alpha_list, nr=51, dt=0.001, t_end=0.1,
         print(f"  L2={errs['l2']:.6g}, Linf={errs['linf']:.6g}, time={wall:.4f}s")
 
 
-def _update_model(alpha_list, nr, dt, t_end, data_path, model_path):
+def _update_model(alpha_list, nr, dt, t_end, data_path, model_path,
+                  profile_name="parabolic", profile_params=None):
     """Append current benchmark results to training data and retrain."""
     from policy.train import append_training_sample, train_model
 
@@ -136,7 +150,7 @@ def _update_model(alpha_list, nr, dt, t_end, data_path, model_path):
 
     for alpha in alpha_list:
         r = np.linspace(0, 1, nr)
-        T0 = make_initial(r)
+        T0 = make_initial(r, profile_name, profile_params)
         feats = extract_initial_features(T0, r, alpha, nr, dt, t_end)
 
         T_ref = compute_reference(T0, r, dt, t_end, alpha)
@@ -180,6 +194,11 @@ def main():
     parser.add_argument("--nr", type=int, default=51)
     parser.add_argument("--dt", type=float, default=0.001)
     parser.add_argument("--t_end", type=float, default=0.1)
+    parser.add_argument("--profile", type=str, default="parabolic",
+                        choices=get_available_profiles(),
+                        help="Initial temperature profile type")
+    parser.add_argument("--profile-params", type=str, default="",
+                        help='Profile parameters as "key=val,key2=val2"')
     parser.add_argument("--generate-data", action="store_true",
                         help="Generate training data via parameter sweep")
     parser.add_argument("--use-ml-selector", action="store_true",
@@ -192,6 +211,8 @@ def main():
                         help="Path to training data CSV")
     args = parser.parse_args()
 
+    profile_params = parse_profile_params(args.profile_params)
+
     if args.generate_data:
         from policy.train import generate_training_data
         generate_training_data(args.data_path)
@@ -199,14 +220,15 @@ def main():
 
     if args.use_ml_selector:
         run_ml_selector(args.alpha, args.nr, args.dt, args.t_end,
-                        args.model_path)
+                        args.model_path, args.profile, profile_params)
         return
 
-    run(args.alpha, args.nr, args.dt, args.t_end)
+    run(args.alpha, args.nr, args.dt, args.t_end, args.profile, profile_params)
 
     if args.update:
         _update_model(args.alpha, args.nr, args.dt, args.t_end,
-                      args.data_path, args.model_path)
+                      args.data_path, args.model_path,
+                      args.profile, profile_params)
 
 
 if __name__ == "__main__":
