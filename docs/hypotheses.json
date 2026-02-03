@@ -1,0 +1,103 @@
+{
+  "findings": {
+    "total_samples": 432,
+    "solver_distribution": {
+      "implicit_fdm": 0.9953703703703703,
+      "spectral_cosine": 0.004629629629629629
+    },
+    "fdm_dominance": 0.9953703703703703,
+    "spectral_wins": 2,
+    "alpha_range": [
+      0.0,
+      2.0
+    ],
+    "spectral_conditions": {
+      "alpha_max": 0.1,
+      "stiffness_max": 0.27075567818712587
+    }
+  },
+  "gaps": [
+    {
+      "description": "FDM wins 99.5% - Is this due to spectral instability or genuine superiority?",
+      "importance": "HIGH"
+    },
+    {
+      "description": "Only one IC tested (T\u2080 = 1-r\u00b2). Results may not generalize.",
+      "importance": "HIGH"
+    },
+    {
+      "description": "\u03bb=0.1 fixed. Unknown how results change with different \u03bb.",
+      "importance": "MEDIUM"
+    },
+    {
+      "description": "Spectral rarely wins. Unclear if it's error or instability.",
+      "importance": "HIGH"
+    },
+    {
+      "description": "Limited grid parameter combinations (3\u00d73\u00d73). May miss optimal regions.",
+      "importance": "MEDIUM"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "Spectral solver fails due to numerical instability from threshold-based \u03c7, not accuracy issues",
+      "priority": "HIGH",
+      "verification_method": "\n1. Run spectral solver with very small dt (dt=0.0001)\n2. Check if solution remains bounded\n3. Compare error growth rate vs FDM\n4. Analyze Fourier coefficients for spurious modes\n"
+    },
+    {
+      "id": "H2",
+      "statement": "Spectral fails because nonlinear term is treated explicitly",
+      "priority": "HIGH",
+      "verification_method": "\n1. Examine spectral solver code for time-stepping scheme\n2. Implement semi-implicit or fully implicit variant\n3. Compare stability regions\n"
+    },
+    {
+      "id": "H4",
+      "statement": "With smoother IC (e.g., Gaussian), spectral may outperform FDM",
+      "priority": "HIGH",
+      "verification_method": "\n1. Add new IC: T\u2080 = exp(-10r\u00b2) (Gaussian, already implemented before)\n2. Add new IC: T\u2080 = cos(\u03c0r/2) (very smooth)\n3. Regenerate training data with multiple ICs\n4. Compare solver performance per IC\n"
+    },
+    {
+      "id": "H7",
+      "statement": "Spectral 'failures' are NaN/Inf (instability), not large but finite errors",
+      "priority": "HIGH",
+      "verification_method": "\n1. Run spectral for all parameter combinations\n2. Classify outcomes: stable+accurate, stable+inaccurate, unstable (NaN/Inf)\n3. Map instability regions in parameter space\n"
+    },
+    {
+      "id": "H3",
+      "statement": "Crank-Nicolson (FDM) is unconditionally stable for any \u03b1 and dt",
+      "priority": "MEDIUM",
+      "verification_method": "\n1. Run FDM with very large dt (dt=0.01, 0.05)\n2. Verify solution remains bounded\n3. Compute stability factor vs spectral\n"
+    },
+    {
+      "id": "H5",
+      "statement": "Spectral performs better when max|dT/dr| < 0.5 (below \u03c7 threshold)",
+      "priority": "MEDIUM",
+      "verification_method": "\n1. Create IC with small gradients: T\u2080 = 0.2*(1-r\u00b2)\n2. Test both solvers in purely linear regime\n3. Compare accuracy and speed\n"
+    },
+    {
+      "id": "H6",
+      "statement": "With \u03bb=1.0 (speed-focused), solver ranking may change",
+      "priority": "MEDIUM",
+      "verification_method": "\n1. Regenerate results with \u03bb = 0.0, 0.1, 0.5, 1.0, 2.0\n2. Plot solver win rate vs \u03bb\n3. Find crossover point\n"
+    },
+    {
+      "id": "H9",
+      "statement": "4x refinement for reference may be insufficient for high \u03b1",
+      "priority": "MEDIUM",
+      "verification_method": "\n1. Compute reference with 4x, 8x, 16x refinement\n2. Check convergence of reference solution\n3. Re-evaluate solver errors with refined reference\n"
+    },
+    {
+      "id": "H8",
+      "statement": "Finer grid in (dt, nr) space reveals optimal spectral region",
+      "priority": "LOW",
+      "verification_method": "\n1. Create finer sweep: nr \u2208 [21, 31, 41, 51, 61, 71, 81]\n2. dt \u2208 [0.0001, 0.0002, 0.0005, 0.001, 0.002]\n3. Generate heatmap of solver wins\n"
+    },
+    {
+      "id": "H10",
+      "statement": "A properly trained PINN could outperform both solvers for high \u03b1",
+      "priority": "LOW",
+      "verification_method": "\n1. Implement full PINN (not stub) with PyTorch\n2. Train on representative problems\n3. Compare accuracy and inference time\n"
+    }
+  ]
+}
