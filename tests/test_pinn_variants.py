@@ -151,8 +151,8 @@ def get_pinn_variants(quick: bool = False, verbose: bool = False):
         return variants
 
 
-def test_single_variant(name, solver, T0, r, dt, t_end, alpha, T_ref):
-    """Test a single PINN variant."""
+def _test_single_variant(name, solver, T0, r, dt, t_end, alpha, T_ref):
+    """Test a single PINN variant (helper function)."""
     print(f"\n{'='*50}")
     print(f"Testing: {name}")
     print(f"{'='*50}")
@@ -225,7 +225,7 @@ def compare_all(args):
     # Test each variant
     results = []
     for name, solver in variants.items():
-        result = test_single_variant(name, solver, T0, r, dt, t_end, alpha, T_ref)
+        result = _test_single_variant(name, solver, T0, r, dt, t_end, alpha, T_ref)
         results.append(result)
 
     # Summary

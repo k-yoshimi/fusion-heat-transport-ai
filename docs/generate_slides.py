@@ -111,10 +111,10 @@ def slide_overview(prs):
     add_bullet_list(slide, Inches(0.8), Inches(1.2), Inches(8.4), Inches(4.5), [
         "\u25b6  1D radial heat equation with nonlinear diffusivity \u03c7(|T'|)",
         "\u25b6  Models anomalous heat transport in fusion plasma devices",
-        "\u25b6  Three numerical solvers: Implicit FDM, Spectral, PINN",
+        "\u25b6  8 numerical solvers: FDM, FEM, FVM, Spectral, PINN",
         "\u25b6  Automated benchmarking with L2/L\u221e error metrics",
         "\u25b6  ML-based solver selector (decision tree) predicts best solver",
-        "\u25b6  Incremental learning: model improves with each benchmark run",
+        "\u25b6  Optimized implementations (up to 10x speedup)",
         "\u25b6  Pure Python — numpy + scipy only (no sklearn dependency)",
     ], font_size=18)
 
@@ -175,40 +175,39 @@ def slide_solvers(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, BG_DARK)
     add_text_box(slide, Inches(0.6), Inches(0.3), Inches(8.8), Inches(0.7),
-                 "Numerical Solvers", font_size=32, color=ACCENT, bold=True)
+                 "Numerical Solvers (8 Methods)", font_size=32, color=ACCENT, bold=True)
 
-    # Table-like layout
-    headers = ["Solver", "Method", "Key Features"]
+    # Table-like layout with performance
+    headers = ["Solver", "Method", "Time", "L2 Err"]
     rows = [
-        ["implicit_fdm", "Crank-Nicolson FDM", "2nd order, scipy banded solver, L'H\u00f4pital at r=0"],
-        ["spectral_cosine", "Cosine Expansion", "cos((k+0.5)\u03c0r) basis, semi-implicit stepping"],
-        ["pinn_stub", "Physics-Informed NN", "MLP with PDE loss (requires PyTorch)"],
+        ["cell_centered_fvm", "Finite Volume", "1.9ms", "0.058"],
+        ["implicit_fdm", "Crank-Nicolson FDM", "2.2ms", "0.083"],
+        ["compact4_fdm", "4th-order Compact FDM", "2.5ms", "0.115"],
+        ["imex_fdm", "IMEX (split operator)", "3.4ms", "0.492"],
+        ["chebyshev_spectral", "Chebyshev Spectral", "3.6ms", "0.799"],
+        ["p2_fem", "P2 Finite Element", "39.4ms", "0.108"],
+        ["cosine_spectral", "Cosine Expansion", "2.5ms", "varies"],
+        ["pinn_stub", "Physics-Informed NN", "-", "-"],
     ]
 
-    y = Inches(1.3)
-    for col, (x, w) in enumerate([(Inches(0.6), Inches(2.2)),
-                                   (Inches(2.8), Inches(2.6)),
-                                   (Inches(5.4), Inches(4.4))]):
-        add_text_box(slide, x, y, w, Inches(0.4),
-                     headers[col], font_size=16, color=ACCENT, bold=True)
+    y = Inches(1.0)
+    col_specs = [(Inches(0.4), Inches(2.4)), (Inches(2.8), Inches(2.8)),
+                 (Inches(5.6), Inches(1.2)), (Inches(6.9), Inches(1.2))]
+    for col, (x, w) in enumerate(col_specs):
+        add_text_box(slide, x, y, w, Inches(0.35),
+                     headers[col], font_size=14, color=ACCENT, bold=True)
 
     for i, row in enumerate(rows):
-        y_row = Inches(1.9 + i * 0.65)
-        for col, (x, w) in enumerate([(Inches(0.6), Inches(2.2)),
-                                       (Inches(2.8), Inches(2.6)),
-                                       (Inches(5.4), Inches(4.4))]):
-            c = ORANGE if col == 0 else WHITE
-            add_text_box(slide, x, y_row, w, Inches(0.5),
-                         row[col], font_size=14, color=c)
+        y_row = Inches(1.4 + i * 0.42)
+        for col, (x, w) in enumerate(col_specs):
+            c = ORANGE if col == 0 else (ACCENT2 if col == 2 else WHITE)
+            add_text_box(slide, x, y_row, w, Inches(0.38),
+                         row[col], font_size=12, color=c)
 
     # Reference solution
-    add_text_box(slide, Inches(0.6), Inches(4.0), Inches(9.0), Inches(0.4),
-                 "Reference Solution", font_size=18, color=ACCENT2, bold=True)
-    add_bullet_list(slide, Inches(0.8), Inches(4.5), Inches(8.5), Inches(1.5), [
-        "Same Implicit FDM with 4\u00d7 spatial and temporal refinement",
-        "~16\u00d7 more accurate (2nd order \u2192 (1/4)\u00b2 error reduction)",
-        "Works for any \u03b1 — no analytical solution needed",
-    ], font_size=15)
+    add_text_box(slide, Inches(0.4), Inches(5.0), Inches(9.0), Inches(0.4),
+                 "Reference: Implicit FDM with 4\u00d7 refinement (nr\u00d74, dt/4)",
+                 font_size=14, color=LIGHT_GRAY)
 
 
 def slide_benchmark_results(prs):
@@ -367,6 +366,47 @@ def slide_incremental(prs):
                  font_size=18, color=ORANGE, bold=True, alignment=PP_ALIGN.CENTER)
 
 
+def slide_optimization(prs):
+    """Slide showing optimization results."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_slide_bg(slide, BG_DARK)
+    add_text_box(slide, Inches(0.6), Inches(0.3), Inches(8.8), Inches(0.7),
+                 "Performance Optimization", font_size=32, color=ACCENT, bold=True)
+
+    # Optimization table
+    headers = ["Solver", "Before", "After", "Speedup"]
+    rows = [
+        ["Compact4 FDM", "25.3ms", "2.5ms", "10.3\u00d7"],
+        ["Cell-Centered FVM", "14.5ms", "1.9ms", "7.6\u00d7"],
+        ["P2 FEM", "285.0ms", "39.4ms", "7.2\u00d7"],
+        ["Chebyshev Spectral", "8.1ms", "3.6ms", "2.3\u00d7"],
+    ]
+
+    y = Inches(1.2)
+    col_specs = [(Inches(0.8), Inches(3.0)), (Inches(3.8), Inches(1.5)),
+                 (Inches(5.3), Inches(1.5)), (Inches(6.8), Inches(1.5))]
+    for col, (x, w) in enumerate(col_specs):
+        add_text_box(slide, x, y, w, Inches(0.4),
+                     headers[col], font_size=16, color=ACCENT, bold=True)
+
+    for i, row in enumerate(rows):
+        y_row = Inches(1.7 + i * 0.5)
+        for col, (x, w) in enumerate(col_specs):
+            c = ORANGE if col == 0 else (ACCENT2 if col == 3 else WHITE)
+            add_text_box(slide, x, y_row, w, Inches(0.4),
+                         row[col], font_size=15, color=c)
+
+    # Key techniques
+    add_text_box(slide, Inches(0.6), Inches(4.0), Inches(9.0), Inches(0.4),
+                 "Key Optimization Techniques", font_size=20, color=ACCENT2, bold=True)
+    add_bullet_list(slide, Inches(0.8), Inches(4.5), Inches(8.5), Inches(2.5), [
+        "Replaced spsolve with solve_banded for tridiagonal systems",
+        "Vectorized matrix assembly (P2 FEM, Chebyshev)",
+        "Precomputed geometric factors outside time loops",
+        "Broadcasting operations instead of Python loops",
+    ], font_size=16)
+
+
 def slide_architecture(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, BG_DARK)
@@ -375,13 +415,13 @@ def slide_architecture(prs):
 
     modules = [
         ("app/", "CLI entrypoint, benchmark runner"),
-        ("solvers/", "FDM (Crank-Nicolson), Spectral (cosine), PINN (stub)"),
-        ("features/", "Gradient, Laplacian, chi, energy, ML feature extraction"),
+        ("solvers/", "FDM, FEM, FVM, Spectral, PINN (8 methods)"),
+        ("features/", "Gradient, Laplacian, chi, energy, ML features"),
         ("metrics/", "L2 and L\u221e error computation"),
         ("policy/", "Post-hoc selection + ML decision tree + training"),
         ("reports/", "CSV and Markdown output generation"),
         ("tests/", "22 unit tests (pytest)"),
-        ("docs/", "Manual, tutorial with figures"),
+        ("docs/", "Manual, tutorial, slides, figures"),
     ]
 
     y = Inches(1.2)

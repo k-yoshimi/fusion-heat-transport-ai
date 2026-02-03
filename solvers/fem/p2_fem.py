@@ -1,7 +1,7 @@
 """P2 (Quadratic) Finite Element Method solver for radial heat transport."""
 
 import numpy as np
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
 from solvers.base import SolverBase
 
@@ -10,213 +10,168 @@ class P2FEM(SolverBase):
     """Quadratic (P2) Finite Element solver in radial coordinates.
 
     Uses Crank-Nicolson time stepping with quadratic shape functions.
+    Optimized with vectorized assembly over all elements.
 
     The weak form of the radial heat equation:
         ∫ r ∂T/∂t v dr = -∫ r χ ∂T/∂r ∂v/∂r dr
-
-    Handles r=0 singularity naturally through the weak formulation.
     """
 
     name = "p2_fem"
 
     def __init__(self, n_gauss: int = 3):
-        """Initialize P2 FEM solver.
-
-        Args:
-            n_gauss: Number of Gauss quadrature points per element.
-        """
+        """Initialize P2 FEM solver."""
         self.n_gauss = n_gauss
-        # Gauss quadrature points and weights on [-1, 1]
         if n_gauss == 2:
             self.gauss_pts = np.array([-1/np.sqrt(3), 1/np.sqrt(3)])
             self.gauss_wts = np.array([1.0, 1.0])
-        elif n_gauss == 3:
-            self.gauss_pts = np.array([-np.sqrt(3/5), 0.0, np.sqrt(3/5)])
-            self.gauss_wts = np.array([5/9, 8/9, 5/9])
         else:
-            # Default to 3-point
             self.gauss_pts = np.array([-np.sqrt(3/5), 0.0, np.sqrt(3/5)])
             self.gauss_wts = np.array([5/9, 8/9, 5/9])
 
-    def _shape_functions(self, xi):
-        """P2 shape functions on reference element [-1, 1].
+    def _shape_functions_vectorized(self, xi):
+        """P2 shape functions for multiple xi values at once.
 
         Args:
-            xi: Local coordinate in [-1, 1]
+            xi: Local coordinates, shape (n_gauss,)
 
         Returns:
-            N: Shape function values [N1, N2, N3]
-            dN: Shape function derivatives [dN1/dxi, dN2/dxi, dN3/dxi]
+            N: Shape functions, shape (n_gauss, 3)
+            dN: Shape function derivatives, shape (n_gauss, 3)
         """
-        N = np.array([
-            xi * (xi - 1) / 2,    # Left node
-            (1 - xi) * (1 + xi),  # Center node
-            xi * (xi + 1) / 2     # Right node
+        N = np.column_stack([
+            xi * (xi - 1) / 2,
+            (1 - xi) * (1 + xi),
+            xi * (xi + 1) / 2
         ])
-        dN = np.array([
-            xi - 0.5,             # dN1/dxi
-            -2 * xi,              # dN2/dxi
-            xi + 0.5              # dN3/dxi
+        dN = np.column_stack([
+            xi - 0.5,
+            -2 * xi,
+            xi + 0.5
         ])
         return N, dN
 
     def _create_p2_mesh(self, r):
-        """Create P2 mesh from original grid.
-
-        For P2 elements, we need midpoint nodes. If original grid has nr points,
-        we create (nr-1) elements, each with 3 nodes (2 corners + 1 midpoint).
-        Total P2 nodes = 2*(nr-1) + 1 = 2*nr - 1.
-
-        Args:
-            r: Original radial grid (nr,)
-
-        Returns:
-            r_p2: P2 mesh nodes (2*nr-1,)
-            elements: Element connectivity, shape (n_elem, 3)
-        """
+        """Create P2 mesh from original grid."""
         nr = len(r)
         n_elem = nr - 1
         n_nodes = 2 * nr - 1
 
-        # Create P2 nodes (add midpoints)
         r_p2 = np.zeros(n_nodes)
-        for i in range(nr - 1):
-            r_p2[2*i] = r[i]
-            r_p2[2*i + 1] = 0.5 * (r[i] + r[i+1])
-        r_p2[-1] = r[-1]
+        r_p2[::2] = r
+        r_p2[1::2] = 0.5 * (r[:-1] + r[1:])
 
-        # Element connectivity (local to global node mapping)
-        # Element e has nodes: [2*e, 2*e+1, 2*e+2]
         elements = np.zeros((n_elem, 3), dtype=int)
-        for e in range(n_elem):
-            elements[e] = [2*e, 2*e+1, 2*e+2]
+        elements[:, 0] = np.arange(0, 2*n_elem, 2)
+        elements[:, 1] = np.arange(1, 2*n_elem + 1, 2)
+        elements[:, 2] = np.arange(2, 2*n_elem + 2, 2)
 
         return r_p2, elements
 
-    def _assemble_matrices(self, r_p2, elements, chi_nodal):
-        """Assemble mass and stiffness matrices.
-
-        Args:
-            r_p2: P2 mesh nodes
-            elements: Element connectivity
-            chi_nodal: Diffusivity at each node
-
-        Returns:
-            M: Mass matrix (sparse)
-            K: Stiffness matrix (sparse)
-        """
+    def _assemble_matrices_vectorized(self, r_p2, elements, chi_nodal):
+        """Vectorized assembly of mass and stiffness matrices."""
         n_nodes = len(r_p2)
         n_elem = len(elements)
 
-        M = lil_matrix((n_nodes, n_nodes))
-        K = lil_matrix((n_nodes, n_nodes))
+        # Get element node coordinates and chi values: shape (n_elem, 3)
+        r_e = r_p2[elements]
+        chi_e = chi_nodal[elements]
 
-        for e in range(n_elem):
-            nodes = elements[e]
-            r_e = r_p2[nodes]  # [r_left, r_mid, r_right]
-            chi_e = chi_nodal[nodes]
+        # Element sizes and Jacobians
+        h_e = r_e[:, 2] - r_e[:, 0]  # (n_elem,)
+        J = h_e / 2  # (n_elem,)
 
-            # Element length and Jacobian
-            h_e = r_e[2] - r_e[0]
-            J = h_e / 2  # Jacobian of mapping from [-1,1] to element
+        # Shape functions at Gauss points: N (n_gauss, 3), dN (n_gauss, 3)
+        N, dN = self._shape_functions_vectorized(self.gauss_pts)
+        n_gauss = len(self.gauss_pts)
 
-            # Local matrices
-            M_e = np.zeros((3, 3))
-            K_e = np.zeros((3, 3))
+        # Initialize local matrices storage: (n_elem, 3, 3)
+        M_local = np.zeros((n_elem, 3, 3))
+        K_local = np.zeros((n_elem, 3, 3))
 
-            # Gauss quadrature
-            for q, (xi, w) in enumerate(zip(self.gauss_pts, self.gauss_wts)):
-                N, dN = self._shape_functions(xi)
+        # Loop over Gauss points (small loop, 2-3 iterations)
+        for q in range(n_gauss):
+            w = self.gauss_wts[q]
+            Nq = N[q]  # (3,)
+            dNq = dN[q]  # (3,)
 
-                # Physical coordinate and derivatives
-                r_q = np.dot(N, r_e)
-                dNdr = dN / J  # dN/dr = dN/dxi * dxi/dr = dN/dxi / J
+            # Physical coordinates at quad point: r_q[e] = sum_i N_i * r_e[e,i]
+            r_q = np.dot(r_e, Nq)  # (n_elem,)
 
-                # Interpolate chi at quadrature point
-                chi_q = np.dot(N, chi_e)
+            # dN/dr = dN/dxi / J
+            dNdr = dNq / J[:, np.newaxis]  # (n_elem, 3)
 
-                # Handle r=0 singularity: use r=epsilon for stability
-                r_eff = max(r_q, 1e-10)
+            # chi at quad points
+            chi_q = np.dot(chi_e, Nq)  # (n_elem,)
 
-                # Mass matrix: ∫ r N_i N_j dr
-                M_e += w * J * r_eff * np.outer(N, N)
+            # Effective r (avoid r=0)
+            r_eff = np.maximum(r_q, 1e-10)
 
-                # Stiffness matrix: ∫ r χ dN_i/dr dN_j/dr dr
-                K_e += w * J * r_eff * chi_q * np.outer(dNdr, dNdr)
+            # Weight factor: w * J * r_eff
+            wJr = w * J * r_eff  # (n_elem,)
 
-            # Assemble into global matrices
-            for i in range(3):
-                for j in range(3):
-                    M[nodes[i], nodes[j]] += M_e[i, j]
-                    K[nodes[i], nodes[j]] += K_e[i, j]
+            # Mass: wJr * outer(N, N)
+            M_local += wJr[:, np.newaxis, np.newaxis] * np.outer(Nq, Nq)
 
-        return csr_matrix(M), csr_matrix(K)
+            # Stiffness: wJr * chi * outer(dNdr, dNdr)
+            # dNdr is (n_elem, 3), need outer product for each element
+            K_contrib = (wJr * chi_q)[:, np.newaxis, np.newaxis] * (
+                dNdr[:, :, np.newaxis] * dNdr[:, np.newaxis, :]
+            )
+            K_local += K_contrib
 
-    def _interpolate_to_p2(self, T, r, r_p2):
-        """Interpolate temperature from original grid to P2 nodes."""
-        return np.interp(r_p2, r, T)
+        # Assemble into global sparse matrix
+        # Use COO format for efficient assembly
+        rows = elements[:, :, np.newaxis].repeat(3, axis=2).flatten()
+        cols = elements[:, np.newaxis, :].repeat(3, axis=1).flatten()
 
-    def _restrict_to_original(self, T_p2, r, r_p2):
-        """Restrict P2 solution back to original grid nodes."""
-        return np.interp(r, r_p2, T_p2)
+        M_data = M_local.flatten()
+        K_data = K_local.flatten()
+
+        M = csr_matrix((M_data, (rows, cols)), shape=(n_nodes, n_nodes))
+        K = csr_matrix((K_data, (rows, cols)), shape=(n_nodes, n_nodes))
+
+        return M, K
 
     def solve(self, T0, r, dt, t_end, alpha):
-        """Solve the heat equation using P2 FEM.
-
-        Args:
-            T0: Initial temperature profile (nr,)
-            r: Radial grid (nr,)
-            dt: Time step
-            t_end: Final time
-            alpha: Nonlinearity parameter
-
-        Returns:
-            T_history: Temperature history (nt+1, nr)
-        """
+        """Solve the heat equation using P2 FEM."""
         nr = len(r)
         nt = int(round(t_end / dt))
 
-        # Create P2 mesh
         r_p2, elements = self._create_p2_mesh(r)
         n_nodes = len(r_p2)
 
-        # Initialize
         T_history = np.zeros((nt + 1, nr))
         T_history[0] = T0.copy()
 
-        # Interpolate initial condition to P2 mesh
-        T = self._interpolate_to_p2(T0, r, r_p2)
+        T = np.interp(r_p2, r, T0)
 
-        # Time stepping (Crank-Nicolson)
+        # Precompute dr for gradient calculation
+        dr_p2 = np.diff(r_p2)
+
         for n in range(nt):
-            # Compute gradient for chi
-            # Use finite differences on P2 mesh
+            # Compute gradient (vectorized)
             dTdr = np.zeros(n_nodes)
-            dTdr[0] = 0.0  # Neumann BC at r=0
+            dTdr[0] = 0.0
             dTdr[1:-1] = (T[2:] - T[:-2]) / (r_p2[2:] - r_p2[:-2])
             dTdr[-1] = (T[-1] - T[-2]) / (r_p2[-1] - r_p2[-2])
 
-            # Compute chi at each node
             chi_nodal = self.chi(dTdr, alpha)
 
             # Assemble matrices
-            M, K = self._assemble_matrices(r_p2, elements, chi_nodal)
+            M, K = self._assemble_matrices_vectorized(r_p2, elements, chi_nodal)
 
             # Crank-Nicolson: (M + dt/2 K) T^{n+1} = (M - dt/2 K) T^n
             A = M + 0.5 * dt * K
             b = (M - 0.5 * dt * K) @ T
 
-            # Apply Dirichlet BC at r=1 (last node)
+            # Dirichlet BC at r=1
             A = A.tolil()
             A[-1, :] = 0
             A[-1, -1] = 1.0
             b[-1] = 0.0
             A = A.tocsr()
 
-            # Solve
             T = spsolve(A, b)
-
-            # Restrict to original grid and save
-            T_history[n + 1] = self._restrict_to_original(T, r, r_p2)
+            T_history[n + 1] = np.interp(r, r_p2, T)
 
         return T_history
