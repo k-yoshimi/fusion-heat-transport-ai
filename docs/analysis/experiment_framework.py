@@ -44,6 +44,16 @@ from solvers.fdm.implicit import ImplicitFDM
 from solvers.spectral.cosine import CosineSpectral
 from metrics.accuracy import compute_errors
 
+# PINN solvers (optional - may not be available)
+HAS_PINN = False
+try:
+    from solvers.pinn.simple import SimplePINN, NonlinearPINN
+    from solvers.pinn.improved import ImprovedPINN
+    from solvers.pinn.variants import FNOPINN
+    HAS_PINN = True
+except ImportError:
+    pass
+
 
 # =============================================================================
 # Data Models
@@ -309,6 +319,8 @@ DEFAULT_HYPOTHESES = {
     "H5": "In linear regime (|dT/dr| < 0.5), both solvers perform equally well",
     "H6": "Cost function parameter lambda > 5 favors spectral solver",
     "H7": "Spectral solver fails with NaN for alpha >= 0.2",
+    "H8": "PINN FNO achieves lower L2 error than other PINN variants",
+    "H9": "PINN solvers are slower but more accurate than FDM for high alpha",
 }
 
 
@@ -339,7 +351,7 @@ def make_initial(r: np.ndarray, ic_type: str, scale: float = 1.0) -> np.ndarray:
 class ExperimentRunner:
     """Runs experiments and stores results."""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None, include_pinn: bool = False):
         if db_path is None:
             db_path = DEFAULT_DB_PATH
         self.db_path = db_path
@@ -348,6 +360,20 @@ class ExperimentRunner:
             "implicit_fdm": ImplicitFDM(),
             "spectral_cosine": CosineSpectral(),
         }
+        # Add PINN solvers if requested and available
+        if include_pinn and HAS_PINN:
+            self.solvers["pinn_simple"] = SimplePINN(
+                hidden_dim=32, n_layers=3, epochs=500, n_collocation=500
+            )
+            self.solvers["pinn_nonlinear"] = NonlinearPINN(
+                hidden_dim=32, n_layers=3, epochs=500, n_collocation=500
+            )
+            self.solvers["pinn_improved"] = ImprovedPINN(
+                hidden_dim=32, num_blocks=2, epochs=500, n_collocation=500
+            )
+            self.solvers["pinn_fno"] = FNOPINN(
+                hidden_channels=16, modes=8, n_layers=2, epochs=500, n_time_samples=20
+            )
 
     def run_experiment(self, config: ExperimentConfig, verbose: bool = True) -> List[ExperimentResult]:
         """Run a full experiment with given configuration."""
@@ -516,16 +542,20 @@ class ExperimentAnalyzer:
             d["l2_error"] = float(d["l2_error"]) if d["l2_error"] != "nan" else float("nan")
             d["wall_time"] = float(d["wall_time"])
 
+        # Get unique solvers from data
+        all_solvers = sorted(set(d["solver"] for d in data))
+
         analysis = {
             "total_runs": len(data),
             "experiments": list(set(d["experiment_name"] for d in data)),
             "solvers": {},
             "stability_analysis": {},
             "winner_analysis": {},
+            "solver_list": all_solvers,
         }
 
         # Per-solver analysis
-        for solver in ["implicit_fdm", "spectral_cosine"]:
+        for solver in all_solvers:
             solver_data = [d for d in data if d["solver"] == solver]
             stable = [d for d in solver_data if d["is_stable"]]
 
@@ -539,7 +569,7 @@ class ExperimentAnalyzer:
 
         # Stability by alpha
         alphas = sorted(set(d["alpha"] for d in data))
-        for solver in ["implicit_fdm", "spectral_cosine"]:
+        for solver in all_solvers:
             analysis["stability_analysis"][solver] = {}
             for alpha in alphas:
                 subset = [d for d in data if d["solver"] == solver and d["alpha"] == alpha]
@@ -552,7 +582,8 @@ class ExperimentAnalyzer:
 
         # Winner analysis (per configuration)
         configs = set((d["alpha"], d["nr"], d["dt"], d["t_end"], d["ic_type"]) for d in data)
-        winners = {"implicit_fdm": 0, "spectral_cosine": 0, "tie": 0}
+        winners = {s: 0 for s in all_solvers}
+        winners["tie"] = 0
 
         for config in configs:
             alpha, nr, dt, t_end, ic_type = config
@@ -650,6 +681,68 @@ class ExperimentAnalyzer:
             results["ic_winners"] = ic_winners
             results["confirmed"] = len(set(w["winner"] for w in ic_winners.values())) > 1
 
+        elif hypothesis_id == "H8":
+            # PINN FNO achieves lower L2 error than other PINN variants
+            pinn_data = [d for d in data if d["solver"].startswith("pinn_") and d["is_stable"]]
+            if not pinn_data:
+                results["confirmed"] = False
+                results["reason"] = "No PINN data available"
+            else:
+                pinn_errors = {}
+                for d in pinn_data:
+                    solver = d["solver"]
+                    if solver not in pinn_errors:
+                        pinn_errors[solver] = []
+                    try:
+                        pinn_errors[solver].append(float(d["l2_error"]))
+                    except (ValueError, TypeError):
+                        pass
+
+                avg_errors = {s: np.mean(e) for s, e in pinn_errors.items() if e}
+                results["pinn_errors"] = avg_errors
+
+                if "pinn_fno" in avg_errors:
+                    fno_avg = avg_errors["pinn_fno"]
+                    other_avgs = [v for k, v in avg_errors.items() if k != "pinn_fno"]
+                    results["confirmed"] = all(fno_avg < o for o in other_avgs) if other_avgs else False
+                else:
+                    results["confirmed"] = False
+
+        elif hypothesis_id == "H9":
+            # PINN solvers are slower but more accurate than FDM for high alpha
+            high_alpha_data = [d for d in data if d["alpha"] >= 0.5 and d["is_stable"]]
+
+            pinn_data = [d for d in high_alpha_data if d["solver"].startswith("pinn_")]
+            fdm_data = [d for d in high_alpha_data if d["solver"] == "implicit_fdm"]
+
+            if not pinn_data or not fdm_data:
+                results["confirmed"] = False
+                results["reason"] = "Insufficient PINN or FDM data for high alpha"
+            else:
+                pinn_errors = [float(d["l2_error"]) for d in pinn_data
+                               if d["l2_error"] != "nan"]
+                fdm_errors = [float(d["l2_error"]) for d in fdm_data
+                              if d["l2_error"] != "nan"]
+                pinn_times = [float(d["wall_time"]) for d in pinn_data]
+                fdm_times = [float(d["wall_time"]) for d in fdm_data]
+
+                if pinn_errors and fdm_errors and pinn_times and fdm_times:
+                    pinn_avg_err = np.mean(pinn_errors)
+                    fdm_avg_err = np.mean(fdm_errors)
+                    pinn_avg_time = np.mean(pinn_times)
+                    fdm_avg_time = np.mean(fdm_times)
+
+                    results["pinn_l2"] = pinn_avg_err
+                    results["fdm_l2"] = fdm_avg_err
+                    results["pinn_time"] = pinn_avg_time
+                    results["fdm_time"] = fdm_avg_time
+
+                    # PINN more accurate AND slower
+                    results["confirmed"] = (pinn_avg_err < fdm_avg_err and
+                                           pinn_avg_time > fdm_avg_time)
+                else:
+                    results["confirmed"] = False
+
         return results
 
     def print_report(self, analysis: Dict):
@@ -687,6 +780,14 @@ class ExperimentAnalyzer:
 # Predefined Experiments
 # =============================================================================
 
+def get_solver_list(include_pinn: bool = False) -> List[str]:
+    """Get list of solvers to use."""
+    solvers = ["implicit_fdm", "spectral_cosine"]
+    if include_pinn and HAS_PINN:
+        solvers.extend(["pinn_simple", "pinn_nonlinear", "pinn_improved", "pinn_fno"])
+    return solvers
+
+
 EXPERIMENTS = {
     "stability_map": ExperimentConfig(
         name="stability_map",
@@ -706,6 +807,19 @@ EXPERIMENTS = {
         dt_list=[0.0005],  # Use stable dt for spectral
         t_end_list=[0.1],
         ic_type="parabola",  # Will be overridden
+    ),
+
+    # PINN comparison experiment (fewer parameters due to longer runtime)
+    "pinn_comparison": ExperimentConfig(
+        name="pinn_comparison",
+        description="Compare PINN variants with FDM/Spectral",
+        alpha_list=[0.0, 0.5, 1.0],
+        nr_list=[51],
+        dt_list=[0.001],
+        t_end_list=[0.1],
+        ic_type="parabola",
+        solvers=["implicit_fdm", "spectral_cosine",
+                 "pinn_simple", "pinn_nonlinear", "pinn_improved", "pinn_fno"],
     ),
 
     "linear_regime": ExperimentConfig(
@@ -1077,6 +1191,8 @@ def main():
                         help="Auto mode: generate data, run N cycles (default 3), generate report")
     parser.add_argument("--fresh", action="store_true",
                         help="Regenerate reference database for each verification cycle")
+    parser.add_argument("--pinn", action="store_true",
+                        help="Include PINN solvers in comparison (slower)")
     args = parser.parse_args()
 
     tracker = HypothesisTracker()
@@ -1087,11 +1203,17 @@ def main():
             if hid not in tracker.hypotheses:
                 tracker.add_hypothesis(hid, statement)
 
+    # Check PINN availability
+    include_pinn = args.pinn if hasattr(args, 'pinn') else False
+    if include_pinn and not HAS_PINN:
+        print("Warning: PINN requested but PyTorch not available. Running without PINN.")
+        include_pinn = False
+
     if args.interactive:
         interactive_mode()
     elif args.auto is not None:
         # Auto mode: full analysis pipeline
-        runner = ExperimentRunner()
+        runner = ExperimentRunner(include_pinn=include_pinn)
         analyzer = ExperimentAnalyzer()
         n_cycles = args.auto
         fresh_mode = args.fresh

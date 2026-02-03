@@ -524,7 +524,10 @@ def calculate_summary(data):
         "solvers": {},
     }
 
-    for solver in ["implicit_fdm", "spectral_cosine"]:
+    # Get all unique solvers dynamically
+    all_solvers = sorted(set(d["solver"] for d in data if d.get("solver")))
+
+    for solver in all_solvers:
         solver_data = [d for d in data if d["solver"] == solver]
         stable = [d for d in solver_data if d["is_stable"] == "True"]
 
@@ -537,12 +540,19 @@ def calculate_summary(data):
             except (ValueError, KeyError):
                 pass
 
+        # Use seconds for PINN (slow), ms for others
+        avg_time = sum(times) / len(times) if times else 0
+        is_pinn = solver.startswith("pinn_")
+        time_str = avg_time if is_pinn else avg_time * 1000  # s for PINN, ms for others
+        time_unit = "s" if is_pinn else "ms"
+
         summary["solvers"][solver] = {
             "total": len(solver_data),
             "stable": len(stable),
             "stable_pct": len(stable) / len(solver_data) * 100 if solver_data else 0,
             "avg_l2": sum(errors) / len(errors) if errors else 0,
-            "avg_time": sum(times) / len(times) * 1000 if times else 0,  # ms
+            "avg_time": time_str,
+            "time_unit": time_unit,
         }
 
     return summary
@@ -659,17 +669,29 @@ def main():
 
     # === Experiment Results ===
     if summary and summary.get("solvers"):
+        # Solver display names
+        solver_names = {
+            'implicit_fdm': 'Implicit FDM',
+            'spectral_cosine': 'Spectral',
+            'pinn_simple': 'PINN Simple',
+            'pinn_nonlinear': 'PINN Nonlinear',
+            'pinn_improved': 'PINN Improved',
+            'pinn_fno': 'PINN FNO',
+        }
         headers = ["Solver", "Runs", "Stable %", "Avg L2", "Avg Time"]
         rows = []
         for solver, stats in summary["solvers"].items():
+            time_unit = stats.get("time_unit", "ms")
+            time_val = stats['avg_time']
+            time_str = f"{time_val:.2f}{time_unit}"
             rows.append([
-                solver,
+                solver_names.get(solver, solver),
                 stats["total"],
                 f"{stats['stable_pct']:.1f}%",
-                f"{stats['avg_l2']:.6f}",
-                f"{stats['avg_time']:.2f}ms",
+                f"{stats['avg_l2']:.4f}",
+                time_str,
             ])
-        add_results_table_slide(prs, "Experiment Results", headers, rows)
+        add_results_table_slide(prs, "Solver Performance Comparison", headers, rows)
 
     # === Hypothesis Results Summary ===
     if hyp_data:
@@ -779,16 +801,18 @@ def main():
 
     # === Key Findings ===
     add_content_slide(prs, "Key Findings", [
-        "H1 Confirmed: Smaller dt improves spectral stability",
-        "  - dt=0.0001: 100% stable",
-        "  - dt=0.002: 0% stable",
+        "Stability Analysis:",
+        "  • FDM: 100% stable (unconditionally)",
+        "  • PINN: 100% stable (all variants)",
+        "  • Spectral: 74.5% stable (depends on dt, alpha)",
         "",
-        "H7 Confirmed: Spectral fails for high alpha",
-        "  - Instability threshold around alpha >= 0.2",
+        "Accuracy Ranking (avg L2 error):",
+        "  1. Spectral: 0.088 (when stable)",
+        "  2. FDM: 0.183",
+        "  3. PINN-FNO: 0.312",
+        "  4. PINN-Improved: 0.640",
         "",
-        "FDM Characteristics:",
-        "  - Unconditionally stable (100% for all parameters)",
-        "  - Higher L2 error but more reliable",
+        "Speed: FDM (7ms) ≈ Spectral (10ms) << PINN (1-20s)",
     ])
 
     # === Iteration Cycle ===
@@ -826,7 +850,59 @@ def main():
         "  hypo add H8 '...' - Add new hypothesis",
     ], bullet=False)
 
+    # === PINN Solver Analysis ===
+    pinn_solvers = [s for s in summary.get("solvers", {}).keys() if s.startswith("pinn_")]
+    if pinn_solvers:
+        add_content_slide(prs, "PINN Solver Analysis", [
+            "Physics-Informed Neural Networks (PINNs) evaluated:",
+            "",
+            "  • PINN Simple: Basic 3-layer MLP (32 hidden units)",
+            "  • PINN Nonlinear: MLP with explicit χ(|T'|) in loss",
+            "  • PINN Improved: Fourier features + residual blocks",
+            "  • PINN FNO: Fourier Neural Operator (spectral learning)",
+            "",
+            "Configuration: 500 epochs, 500 collocation points",
+            "",
+            f"Total PINN runs: {sum(summary['solvers'][s]['total'] for s in pinn_solvers)}",
+        ])
+
+        # PINN Key Findings
+        add_content_slide(prs, "PINN Key Findings", [
+            "1. Unconditional Stability",
+            "   All PINN variants: 100% stable (like FDM)",
+            "",
+            "2. Accuracy Ranking (L2 error)",
+            "   Spectral (0.088) > FDM (0.183) > FNO (0.312) > Others",
+            "",
+            "3. Computation Time",
+            "   Traditional: ~10ms | PINN: 1-20 seconds",
+            "   → 100-2000x slower than traditional methods",
+            "",
+            "4. Best PINN: FNO",
+            "   ~2x better accuracy than other PINN variants",
+        ])
+
+        # PINN Recommendations
+        add_content_slide(prs, "PINN Recommendations", [
+            "When to use PINN:",
+            "  • Complex/irregular geometries",
+            "  • Inverse problems (parameter estimation)",
+            "  • Sparse or noisy observational data",
+            "  • Need automatic differentiation",
+            "",
+            "When NOT to use PINN:",
+            "  • Well-posed forward problems on regular grids",
+            "  • Real-time or performance-critical applications",
+            "  • Simple PDEs with known analytical properties",
+            "",
+            "Recommendation: Use FDM/Spectral for this benchmark",
+        ])
+
     # === Summary ===
+    # Count confirmed hypotheses
+    confirmed = sum(1 for h in hyp_data.values() if h.get("status") == "confirmed")
+    rejected = sum(1 for h in hyp_data.values() if h.get("status") == "rejected")
+
     add_content_slide(prs, "Summary", [
         "Multi-Agent System provides:",
         "  - Parallel analysis for faster insights",
@@ -836,12 +912,13 @@ def main():
         "",
         "Results:",
         f"  - {summary.get('total_runs', 0)} experiments analyzed",
-        f"  - {len(hyp_data)} hypotheses tracked",
-        "  - 2 hypotheses confirmed, 1 rejected",
+        f"  - {len(summary.get('solvers', {}))} solvers compared (incl. PINN)",
+        f"  - {len(hyp_data)} hypotheses tracked ({confirmed} confirmed)",
         "",
-        "Future Work:",
-        "  - Add more specialized agents",
-        "  - Implement adaptive experiment selection",
+        "Conclusions:",
+        "  - FDM: Best stability-accuracy balance",
+        "  - Spectral: Best accuracy when stable",
+        "  - PINN-FNO: Best neural network approach",
     ])
 
     # Save
