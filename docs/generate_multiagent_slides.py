@@ -673,6 +673,9 @@ def main():
         solver_names = {
             'implicit_fdm': 'Implicit FDM',
             'spectral_cosine': 'Spectral',
+            'p2_fem': 'P2 FEM',
+            'cell_centered_fvm': 'FVM',
+            'compact4_fdm': 'Compact4 FDM',
             'pinn_simple': 'PINN Simple',
             'pinn_nonlinear': 'PINN Nonlinear',
             'pinn_improved': 'PINN Improved',
@@ -850,6 +853,41 @@ def main():
         "  hypo add H8 '...' - Add new hypothesis",
     ], bullet=False)
 
+    # === New Solvers (FEM/FVM) Analysis ===
+    new_solvers = ['p2_fem', 'cell_centered_fvm', 'compact4_fdm']
+    has_new_solvers = any(s in summary.get("solvers", {}) for s in new_solvers)
+    if has_new_solvers:
+        add_content_slide(prs, "New Solver Methods", [
+            "Three new numerical methods implemented:",
+            "",
+            "  • P2 FEM: Quadratic Finite Element Method",
+            "    - Galerkin weak formulation",
+            "    - 3-point Gauss quadrature",
+            "",
+            "  • Cell-Centered FVM: Finite Volume Method",
+            "    - Strict conservation of integral quantities",
+            "    - Harmonic mean for face diffusivity",
+            "",
+            "  • Compact4 FDM: 4th-order Compact FDM",
+            "    - Padé-type approximation for derivatives",
+            "    - Tridiagonal stencil with 4th-order accuracy",
+        ])
+
+        add_content_slide(prs, "New Solvers: Key Results", [
+            "Performance (vs 4x-refined reference):",
+            "",
+            "  • P2 FEM: L2=0.097, 100% stable, ~1s",
+            "    Best accuracy among stable methods",
+            "",
+            "  • Compact4 FDM: L2=0.173, 100% stable, ~95ms",
+            "    Better than standard FDM",
+            "",
+            "  • Cell-Centered FVM: L2=0.204, 100% stable, ~58ms",
+            "    Similar to implicit FDM",
+            "",
+            "All new methods: unconditionally stable",
+        ])
+
     # === PINN Solver Analysis ===
     pinn_solvers = [s for s in summary.get("solvers", {}).keys() if s.startswith("pinn_")]
     if pinn_solvers:
@@ -904,21 +942,19 @@ def main():
     rejected = sum(1 for h in hyp_data.values() if h.get("status") == "rejected")
 
     add_content_slide(prs, "Summary", [
-        "Multi-Agent System provides:",
-        "  - Parallel analysis for faster insights",
-        "  - Specialized agents for different tasks",
-        "  - Hypothesis-driven experimentation",
-        "  - Automated report generation",
-        "",
-        "Results:",
+        "Comprehensive Solver Comparison:",
         f"  - {summary.get('total_runs', 0)} experiments analyzed",
-        f"  - {len(summary.get('solvers', {}))} solvers compared (incl. PINN)",
+        f"  - {len(summary.get('solvers', {}))} solvers compared",
         f"  - {len(hyp_data)} hypotheses tracked ({confirmed} confirmed)",
         "",
-        "Conclusions:",
-        "  - FDM: Best stability-accuracy balance",
-        "  - Spectral: Best accuracy when stable",
-        "  - PINN-FNO: Best neural network approach",
+        "Accuracy Ranking (when stable):",
+        "  1. Spectral (L2=0.078) - unstable at high α",
+        "  2. P2 FEM (L2=0.097) - 100% stable",
+        "  3. Compact4 FDM (L2=0.173) - 100% stable",
+        "  4. FDM (L2=0.190) - 100% stable",
+        "  5. PINN-FNO (L2=0.312) - 100% stable",
+        "",
+        "Recommendation: P2 FEM for accuracy, FDM for speed",
     ])
 
     # Save

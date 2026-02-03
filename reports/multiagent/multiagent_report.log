@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.9.10)  3 FEB 2026 15:35
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2023.9.10)  3 FEB 2026 16:27
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -381,7 +381,7 @@ File: l3backend-pdftex.def 2023-01-16 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count293
 \l__pdf_internal_box=\box57
 )
-No file multiagent_report.aux.
+(./multiagent_report.aux)
 \openout1 = `multiagent_report.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 19.
@@ -402,6 +402,7 @@ LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 19.
 LaTeX Font Info:    ... okay on input line 19.
 LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 19.
 LaTeX Font Info:    ... okay on input line 19.
+
 (/usr/local/texlive/2023/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count294
@@ -425,6 +426,8 @@ File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
 Package hyperref Info: Link coloring OFF on input line 19.
+
+(./multiagent_report.out) (./multiagent_report.out)
 \@outlinefile=\write3
 \openout3 = `multiagent_report.out'.
 
@@ -476,7 +479,7 @@ LaTeX Font Info:    Trying to load font information for U+msb on input line 22.
 (/usr/local/texlive/2023/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
-<fig5_architecture.png, id=4, 867.24pt x 578.16pt>
+<fig5_architecture.png, id=124, 867.24pt x 578.16pt>
 File: fig5_architecture.png Graphic file (type png)
 <use fig5_architecture.png>
 Package pdftex.def Info: fig5_architecture.png  used on input line 62.
@@ -485,154 +488,81 @@ Package pdftex.def Info: fig5_architecture.png  used on input line 62.
 
 {/usr/local/texlive/2023/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/loc
 al/texlive/2023/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}]
-<fig1_stability_by_alpha.png, id=32, 722.7pt x 433.62pt>
+<fig1_stability_by_alpha.png, id=150, 867.24pt x 433.62pt>
 File: fig1_stability_by_alpha.png Graphic file (type png)
 <use fig1_stability_by_alpha.png>
-Package pdftex.def Info: fig1_stability_by_alpha.png  used on input line 96.
-(pdftex.def)             Requested size: 386.96027pt x 232.1796pt.
+Package pdftex.def Info: fig1_stability_by_alpha.png  used on input line 100.
+(pdftex.def)             Requested size: 432.48051pt x 216.24045pt.
  [2{/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.en
 c} <./fig5_architecture.png>]
-<fig2_error_distribution.png, id=46, 867.24pt x 361.35pt>
+<fig2_error_distribution.png, id=160, 867.24pt x 433.62pt>
 File: fig2_error_distribution.png Graphic file (type png)
 <use fig2_error_distribution.png>
-Package pdftex.def Info: fig2_error_distribution.png  used on input line 105.
-(pdftex.def)             Requested size: 432.48051pt x 180.20036pt.
-<fig3_computation_time.png, id=47, 722.7pt x 433.62pt>
+Package pdftex.def Info: fig2_error_distribution.png  used on input line 110.
+(pdftex.def)             Requested size: 432.48051pt x 216.24045pt.
+<fig3_computation_time.png, id=161, 867.24pt x 433.62pt>
 File: fig3_computation_time.png Graphic file (type png)
 <use fig3_computation_time.png>
-Package pdftex.def Info: fig3_computation_time.png  used on input line 114.
-(pdftex.def)             Requested size: 341.43307pt x 204.86006pt.
+Package pdftex.def Info: fig3_computation_time.png  used on input line 119.
+(pdftex.def)             Requested size: 432.48051pt x 216.24045pt.
  [3 <./fig1_stability_by_alpha.png> <./fig2_error_distribution.png>]
-<fig4_hypothesis_results.png, id=58, 722.7pt x 433.62pt>
+<fig4_hypothesis_results.png, id=170, 722.7pt x 433.62pt>
 File: fig4_hypothesis_results.png Graphic file (type png)
 <use fig4_hypothesis_results.png>
-Package pdftex.def Info: fig4_hypothesis_results.png  used on input line 122.
+Package pdftex.def Info: fig4_hypothesis_results.png  used on input line 128.
 (pdftex.def)             Requested size: 409.71692pt x 245.82944pt.
 
-[4 <./fig3_computation_time.png> <./fig4_hypothesis_results.png>]
-! Missing $ inserted.
-<inserted text> 
-                $
-l.147 ...\textcolor{red}{\textbf{REJECTED}} \times
-                                                  
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
+[4 <./fig3_computation_time.png> <./fig4_hypothesis_results.png>] [5]
+<fig6_pinn_comparison.png, id=189, 1011.78pt x 361.35pt>
+File: fig6_pinn_comparison.png Graphic file (type png)
+<use fig6_pinn_comparison.png>
+Package pdftex.def Info: fig6_pinn_comparison.png  used on input line 240.
+(pdftex.def)             Requested size: 432.48051pt x 154.45667pt.
 
 
-! LaTeX Error: Command \item invalid in math mode.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.148 \item
-            Confidence: 0.0\%
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 246.
 
 
-! LaTeX Error: Something's wrong--perhaps a missing \item.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.148 \item C
-             onfidence: 0.0\%
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\alpha' on input line 246.
 
 
-! LaTeX Error: Something's wrong--perhaps a missing \item.
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 246.
 
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.148 \item C
-             onfidence: 0.0\%
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-
-! LaTeX Error: Command \item invalid in math mode.
-
-See the LaTeX manual or LaTeX Companion for explanation.
-Type  H <return>  for immediate help.
- ...                                              
-                                                  
-l.149 \item
-            Verifications: 0
-Try typing  <return>  to proceed.
-If that doesn't work, type  X <return>  to quit.
-
-! Missing $ inserted.
-<inserted text> 
-                $
-l.149 \item V
-             erifications: 0
-I've inserted a begin-math/end-math symbol since I think
-you left one out. Proceed, with fingers crossed.
-
-! Missing } inserted.
-<inserted text> 
-                }
-l.149 \item V
-             erifications: 0
-I've inserted something that you may have forgotten.
-(See the <inserted text> above.)
-With luck, this will get me unwedged. But if you
-really didn't forget anything, try typing `2' now; then
-my insertion and my current dilemma will both disappear.
-
-! Extra }, or forgotten \endgroup.
-\par ...m \@noitemerr {\@@par }\fi \else {\@@par }
-                                                  \fi 
-l.149 \item V
-             erifications: 0
-I've deleted a group-closing symbol because it seems to be
-spurious, as in `$x}$'. But perhaps the } is legitimate and
-you forgot something else, as in `\hbox{$x}'. In such cases
-the way to recover is to insert both the forgotten and the
-deleted material, e.g., by typing `I$}'.
-
-[5] [6] (./multiagent_report.aux)
-
-Package rerunfilecheck Warning: File `multiagent_report.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `multiagent_report.out':
-(rerunfilecheck)             Before: <no file>
-(rerunfilecheck)             After:  93ABA48F6FB052E03783F5E3F1DF98F9;4334.
+[6 <./fig6_pinn_comparison.png>] [7] [8] (./multiagent_report.aux)
+Package rerunfilecheck Info: File `multiagent_report.out' has not changed.
+(rerunfilecheck)             Checksum: E381DAD563A678E09CB8ED744ED0877C;5779.
  ) 
 Here is how much of TeX's memory you used:
- 12220 strings out of 476025
- 193575 string characters out of 5790017
- 1861388 words of memory out of 5000000
- 32470 multiletter control sequences out of 15000+600000
- 527293 words of font info for 68 fonts, out of 8000000 for 9000
+ 12296 strings out of 476025
+ 194699 string characters out of 5790017
+ 1863388 words of memory out of 5000000
+ 32510 multiletter control sequences out of 15000+600000
+ 527938 words of font info for 71 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 75i,10n,76p,350b,507s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,10n,76p,524b,526s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb
 ></usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb>
-</usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></
-usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></us
-r/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr
-/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/l
-ocal/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></u
-sr/local/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1000.pfb></usr
-/local/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1095.pfb></usr/l
-ocal/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1200.pfb></usr/loc
-al/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1440.pfb></usr/local
-/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb></usr/local/t
-exlive/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></usr/local/tex
-live/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb></usr/local/texli
-ve/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1728.pfb>
-Output written on multiagent_report.pdf (6 pages, 453961 bytes).
+</usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb><
+/usr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></u
+sr/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr
+/local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/
+local/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/lo
+cal/texlive/2023/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb></us
+r/local/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1000.pfb></usr/
+local/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1095.pfb></usr/lo
+cal/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1200.pfb></usr/loca
+l/texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfbx1440.pfb></usr/local/
+texlive/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb></usr/local/te
+xlive/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></usr/local/texl
+ive/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb></usr/local/texliv
+e/2023/texmf-dist/fonts/type1/public/cm-super/sfrm1728.pfb>
+Output written on multiagent_report.pdf (8 pages, 587143 bytes).
 PDF statistics:
- 173 PDF objects out of 1000 (max. 8388607)
- 122 compressed objects within 2 object streams
- 45 named destinations out of 1000 (max. 500000)
- 26 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 311 PDF objects out of 1000 (max. 8388607)
+ 253 compressed objects within 3 object streams
+ 72 named destinations out of 1000 (max. 500000)
+ 271 words of extra memory for PDF output out of 10000 (max. 10000000)
 

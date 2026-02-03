@@ -83,12 +83,15 @@ with nonlinear diffusivity:
 \toprule
 Solver & Runs & Stable & Stability & Avg L2 Error & Avg Time \\
 \midrule
-Implicit FDM & 55 & 55 & 100.0\% & 0.182743 & 7.04ms \\
+cell_centered_fvm & 40 & 40 & 100.0\% & 0.203963 & 58.16ms \\
+compact4_fdm & 40 & 40 & 100.0\% & 0.173101 & 95.29ms \\
+Implicit FDM & 95 & 95 & 100.0\% & 0.185916 & 7.53ms \\
+p2_fem & 40 & 40 & 100.0\% & 0.097248 & 1.03s \\
 PINN FNO & 43 & 43 & 100.0\% & 0.311848 & 19.50s \\
 PINN Improved & 43 & 43 & 100.0\% & 0.639733 & 3.21s \\
 PINN Nonlinear & 43 & 43 & 100.0\% & 0.659257 & 939.95ms \\
 PINN Simple & 43 & 43 & 100.0\% & 0.929514 & 940.68ms \\
-Spectral Cosine & 55 & 41 & 74.5\% & 0.088366 & 9.76ms \\
+Spectral Cosine & 95 & 69 & 72.6\% & 0.084320 & 10.61ms \\
 \bottomrule
 \end{tabular}
 \end{table}

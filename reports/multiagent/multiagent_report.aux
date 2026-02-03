@@ -22,11 +22,11 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Data Summary}{2}{subsection.3.1}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Solver Performance Summary\relax }}{2}{table.caption.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Stability Analysis}{3}{subsection.3.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Solver stability comparison across different nonlinearity parameters $\alpha $. FDM maintains 100\% stability while spectral method shows decreasing stability at higher $\alpha $.\relax }}{3}{figure.caption.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Stability comparison across all solvers (FDM, Spectral, and PINN variants) for different nonlinearity parameters $\alpha $. FDM and PINN variants maintain 100\% stability, while spectral method shows decreasing stability at higher $\alpha $.\relax }}{3}{figure.caption.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Accuracy Analysis}{3}{subsection.3.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces L2 error distributions for both solvers. Spectral method achieves lower average error when stable, but has higher variance.\relax }}{3}{figure.caption.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces L2 error distribution comparison for all solvers. Spectral achieves the lowest average error when stable, followed by FDM. PINN variants show higher errors but 100\% stability.\relax }}{3}{figure.caption.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Computational Efficiency}{4}{subsection.3.4}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Computation time comparison. FDM is slightly faster on average.\relax }}{4}{figure.caption.5}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Computation time comparison (log scale) for all solvers. Traditional methods (FDM, Spectral) are 100-1000$\times $ faster than PINN variants. PINN-FNO requires the longest time.\relax }}{4}{figure.caption.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {4}Hypothesis Verification}{4}{section.4}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Hypothesis verification results showing confidence levels and status.\relax }}{4}{figure.caption.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Hypothesis Details}{4}{subsection.4.1}\protected@file@percent }
@@ -39,5 +39,16 @@
 \@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{5}{section.5}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Key Findings}{5}{subsection.5.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Recommendations}{6}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{6}{section.6}\protected@file@percent }
-\gdef \@abspage@last{6}
+\@writefile{toc}{\contentsline {section}{\numberline {6}PINN Solver Analysis}{6}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}PINN Architecture Overview}{6}{subsection.6.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Comprehensive solver comparison including PINN variants: L2 error (left) and computation time on log scale (right). Traditional methods achieve better accuracy with orders of magnitude less computation time.\relax }}{6}{figure.caption.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}PINN Performance by Nonlinearity ($\alpha $)}{7}{subsection.6.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces PINN L2 Error by Nonlinearity Parameter $\alpha $\relax }}{7}{table.caption.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}PINN Key Findings}{7}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}When to Use PINN}{7}{subsection.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Conclusion}{7}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Solver Ranking}{8}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Practical Recommendations}{8}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Key Insights}{8}{subsection.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}Future Work}{8}{subsection.7.4}\protected@file@percent }
+\gdef \@abspage@last{8}

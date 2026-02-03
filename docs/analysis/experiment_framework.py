@@ -44,6 +44,28 @@ from solvers.fdm.implicit import ImplicitFDM
 from solvers.spectral.cosine import CosineSpectral
 from metrics.accuracy import compute_errors
 
+# FEM and FVM solvers
+HAS_FEM = False
+try:
+    from solvers.fem.p2_fem import P2FEM
+    HAS_FEM = True
+except ImportError:
+    pass
+
+HAS_FVM = False
+try:
+    from solvers.fvm.cell_centered import CellCenteredFVM
+    HAS_FVM = True
+except ImportError:
+    pass
+
+HAS_COMPACT = False
+try:
+    from solvers.fdm.compact4 import Compact4FDM
+    HAS_COMPACT = True
+except ImportError:
+    pass
+
 # PINN solvers (optional - may not be available)
 HAS_PINN = False
 try:
@@ -351,7 +373,9 @@ def make_initial(r: np.ndarray, ic_type: str, scale: float = 1.0) -> np.ndarray:
 class ExperimentRunner:
     """Runs experiments and stores results."""
 
-    def __init__(self, db_path: str = None, include_pinn: bool = False):
+    def __init__(self, db_path: str = None, include_pinn: bool = False,
+                 include_fem: bool = False, include_fvm: bool = False,
+                 include_compact: bool = False):
         if db_path is None:
             db_path = DEFAULT_DB_PATH
         self.db_path = db_path
@@ -360,6 +384,18 @@ class ExperimentRunner:
             "implicit_fdm": ImplicitFDM(),
             "spectral_cosine": CosineSpectral(),
         }
+        # Add FEM solver if requested and available
+        if include_fem and HAS_FEM:
+            self.solvers["p2_fem"] = P2FEM()
+
+        # Add FVM solver if requested and available
+        if include_fvm and HAS_FVM:
+            self.solvers["cell_centered_fvm"] = CellCenteredFVM()
+
+        # Add Compact FDM solver if requested and available
+        if include_compact and HAS_COMPACT:
+            self.solvers["compact4_fdm"] = Compact4FDM()
+
         # Add PINN solvers if requested and available
         if include_pinn and HAS_PINN:
             self.solvers["pinn_simple"] = SimplePINN(
