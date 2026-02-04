@@ -948,41 +948,185 @@ def slide_16_advanced_multiagent(prs):
                  font_size=13, color=LIGHT_GRAY)
 
 
-def slide_17_summary(prs):
+def slide_17_advanced_results(prs):
+    """Execution results of advanced_multi_agent.py."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_slide_bg(slide, BG_DARK)
+    add_text_box(slide, Inches(0.6), Inches(0.3), Inches(8.8), Inches(0.7),
+                 "Advanced System: Execution Results (1512 samples)",
+                 font_size=30, color=ACCENT, bold=True)
+
+    # StatisticsAgent findings
+    add_text_box(slide, Inches(0.4), Inches(1.1), Inches(4.5), Inches(0.35),
+                 "StatisticsAgent", font_size=16, color=ACCENT, bold=True)
+    add_bullet_list(slide, Inches(0.6), Inches(1.5), Inches(4.3), Inches(1.0), [
+        "implicit_fdm wins 85.5% of cases",
+        "T_center has zero variance (uninformative)",
+    ], font_size=13, color=WHITE)
+
+    # FeatureAgent findings
+    add_text_box(slide, Inches(5.2), Inches(1.1), Inches(4.5), Inches(0.35),
+                 "FeatureAgent", font_size=16, color=ACCENT, bold=True)
+    add_bullet_list(slide, Inches(5.4), Inches(1.5), Inches(4.3), Inches(1.0), [
+        "Top feature: t_end (importance=0.28)",
+        "13 high-correlation pairs detected (>0.9)",
+    ], font_size=13, color=WHITE)
+
+    # Confirmed hypotheses
+    add_text_box(slide, Inches(0.4), Inches(2.6), Inches(8.8), Inches(0.35),
+                 "HypothesisAgent: 3 Confirmed Hypotheses",
+                 font_size=16, color=ACCENT2, bold=True)
+
+    hyps = [
+        ("100%", "Alpha > 0.5 always leads to FDM selection",
+         "FDM wins 99.9% for \u03b1 > 0.5"),
+        ("95%", "Spectral only wins when problem_stiffness < 1.90",
+         "Max stiffness for spectral wins: 1.9022"),
+        ("80%", "Grid params (nr, dt, t_end) more important than physics",
+         "Grid importance: 10, Physics importance: 3"),
+    ]
+    y = Inches(3.1)
+    for conf, statement, evidence in hyps:
+        add_text_box(slide, Inches(0.5), y, Inches(0.8), Inches(0.3),
+                     conf, font_size=13, color=ACCENT2, bold=True)
+        add_text_box(slide, Inches(1.4), y, Inches(4.5), Inches(0.3),
+                     statement, font_size=13, color=WHITE)
+        add_text_box(slide, Inches(6.0), y, Inches(3.6), Inches(0.3),
+                     evidence, font_size=11, color=LIGHT_GRAY)
+        y += Inches(0.38)
+
+    # CriticAgent
+    add_text_box(slide, Inches(0.4), Inches(4.4), Inches(8.8), Inches(0.35),
+                 "CriticAgent: 1 Critique Raised", font_size=16, color=RED, bold=True)
+    add_text_box(slide, Inches(0.6), Inches(4.8), Inches(8.4), Inches(0.35),
+                 "[minor] Feature 't_end' has only 3 unique values "
+                 "\u2014 importance may be inflated",
+                 font_size=13, color=WHITE)
+
+    # SynthesisAgent recommendations
+    add_text_box(slide, Inches(0.4), Inches(5.4), Inches(8.8), Inches(0.35),
+                 "SynthesisAgent: Recommendations", font_size=16,
+                 color=PURPLE, bold=True)
+    add_bullet_list(slide, Inches(0.6), Inches(5.8), Inches(8.4), Inches(1.2), [
+        "1. Use implicit_fdm as the default solver",
+        "2. Consider removing ML selector for this IC (T\u2080 = 1 \u2212 r\u00b2)",
+        "3. Improve spectral solver stability for threshold-based \u03c7",
+        "4. Add more diverse initial conditions to training data",
+    ], font_size=13)
+
+
+def slide_18_what_vs_why(prs):
+    """Analysis gap: What vs Why."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_slide_bg(slide, BG_DARK)
+    add_text_box(slide, Inches(0.6), Inches(0.3), Inches(8.8), Inches(0.7),
+                 "Gap Analysis: What vs Why",
+                 font_size=32, color=ACCENT, bold=True)
+
+    add_text_box(slide, Inches(0.6), Inches(1.0), Inches(8.8), Inches(0.5),
+                 "Current agents answer WHAT happened, but not WHY it happened.",
+                 font_size=18, color=ORANGE, bold=True, alignment=PP_ALIGN.CENTER)
+
+    # What vs Why table
+    headers = ["Agent", "What (automated)", "Why (missing)"]
+    rows = [
+        ["ParetoAnalysis", "implicit_fdm is rank #1",
+         "Why? (2nd-order implicit \u2192 A-stable)"],
+        ["Bottleneck", "Speed gap: 792\u00d7",
+         "Why? (P2 FEM: matrix assembly cost)"],
+        ["Hypothesis", "\u03b1>0.5 \u2192 FDM wins (99.9%)",
+         "Why? (nonlinear \u03c7 creates stiff ODE)"],
+        ["Hypothesis", "Spectral fails when stiffness>1.9",
+         "Why? (explicit stepping + CFL limit)"],
+        ["Evaluation", "P001 score = 3.38",
+         "Why 3.38? (keyword match, not content)"],
+    ]
+    col_w = [Inches(1.6), Inches(3.3), Inches(4.0)]
+    add_table_rows(slide, Inches(0.5), Inches(1.7), headers, rows, col_w,
+                   row_colors=[ORANGE, WHITE, RED],
+                   font_size=13)
+
+    # Physical/mathematical reasons that should be explained
+    add_text_box(slide, Inches(0.4), Inches(3.9), Inches(8.8), Inches(0.4),
+                 "Physical/Mathematical Explanations Needed",
+                 font_size=18, color=ACCENT2, bold=True)
+
+    explanations = [
+        ("Implicit FDM #1",
+         "Crank-Nicolson is A-stable for parabolic PDE. "
+         "Nonlinear \u03c7 is handled implicitly \u2192 no CFL constraint."),
+        ("Spectral instability",
+         "Explicit time-stepping: \u0394t \u2264 C\u00b7(\u0394r)\u00b2/\u03c7_max. "
+         "High \u03b1 \u2192 large \u03c7 \u2192 smaller stable \u0394t required."),
+        ("Compact4 wins at high \u03b1",
+         "4th-order spatial truncation error O(\u0394r\u2074) vs 2nd-order O(\u0394r\u00b2). "
+         "Advantage grows when solution has steep gradients."),
+        ("P2 FEM slow",
+         "Quadratic element \u2192 2N+1 DOFs. Sparse matrix assembly + solve "
+         "at each timestep. Not using banded structure."),
+    ]
+    y = Inches(4.4)
+    for title, reason in explanations:
+        add_text_box(slide, Inches(0.5), y, Inches(2.0), Inches(0.35),
+                     title, font_size=12, color=ORANGE, bold=True)
+        add_text_box(slide, Inches(2.6), y, Inches(7.0), Inches(0.35),
+                     reason, font_size=11, color=WHITE)
+        y += Inches(0.42)
+
+    # Missing agent
+    add_box(slide, Inches(0.3), Inches(6.2), Inches(9.2), Inches(0.9),
+            border_color=RED)
+    add_text_box(slide, Inches(0.5), Inches(6.25), Inches(8.8), Inches(0.35),
+                 "Missing: PhysicalInsightAgent \u2014 "
+                 "\"Why does this solver suit this problem?\"",
+                 font_size=16, color=RED, bold=True)
+    add_text_box(slide, Inches(0.5), Inches(6.6), Inches(8.8), Inches(0.4),
+                 "Needed: Map solver properties (implicit/explicit, spatial order, "
+                 "basis functions) to PDE characteristics (\u03c7 stiffness, "
+                 "gradient sharpness, CFL constraints) to explain WHY.",
+                 font_size=12, color=WHITE)
+
+
+def slide_19_summary(prs):
     """Summary and future directions."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, BG_DARK)
     add_text_box(slide, Inches(0.6), Inches(0.3), Inches(8.8), Inches(0.7),
-                 "Summary & Future Directions", font_size=32,
+                 "Summary & Conclusions", font_size=32,
                  color=ACCENT, bold=True)
 
-    add_text_box(slide, Inches(0.6), Inches(1.2), Inches(8.8), Inches(0.4),
-                 "Key Features", font_size=20, color=ACCENT2, bold=True)
-    add_bullet_list(slide, Inches(0.8), Inches(1.7), Inches(8.4), Inches(2.5), [
-        "\u2705  6 specialized agents in sequential pipeline (clear I/O interfaces)",
-        "\u2705  7-phase closed-loop improvement cycle (data-dependent, serial execution)",
-        "\u2705  PHYSBO Bayesian discrete multi-objective optimization (dt search)",
-        "\u2705  8-category bottleneck detection with severity scoring",
-        "\u2705  4-perspective weighted evaluation (parallelizable for future heavy tasks)",
-        "\u2705  Hypothesis-driven experiment framework with persistence",
-        "\u2705  Full state persistence (JSON) for resume/reproducibility",
+    add_text_box(slide, Inches(0.6), Inches(1.1), Inches(8.8), Inches(0.4),
+                 "What We Built", font_size=20, color=ACCENT2, bold=True)
+    add_bullet_list(slide, Inches(0.8), Inches(1.5), Inches(8.4), Inches(1.8), [
+        "\u2705  Sequential agent pipeline: 6 agents, 7-phase improvement cycle",
+        "\u2705  PHYSBO Bayesian optimization for efficient dt exploration",
+        "\u2705  Automated: Pareto analysis \u2192 bottleneck detection \u2192 proposal \u2192 evaluation",
+        "\u2705  Advanced prototype: CriticAgent debate pattern for cross-validation",
     ], font_size=16)
 
-    add_text_box(slide, Inches(0.6), Inches(4.2), Inches(8.8), Inches(0.4),
-                 "Design Principles", font_size=20, color=ORANGE, bold=True)
-    add_bullet_list(slide, Inches(0.8), Inches(4.7), Inches(8.4), Inches(1.0), [
-        "\u25b6  Hierarchical: CycleCoordinator \u2192 Agents \u2192 Data layer",
-        "\u25b6  Modular: Each agent independently testable and replaceable",
-        "\u25b6  Extensible: New solvers, bottleneck categories, eval perspectives",
+    add_text_box(slide, Inches(0.6), Inches(3.2), Inches(8.8), Inches(0.4),
+                 "What We Learned", font_size=20, color=ORANGE, bold=True)
+    add_bullet_list(slide, Inches(0.8), Inches(3.6), Inches(8.4), Inches(1.8), [
+        "\u25b6  Agents automate What (rankings, gaps, correlations) but not Why",
+        "\u25b6  Scoring is keyword-based heuristic, not content understanding",
+        "\u25b6  Pipeline is sequential (data dependency), not parallel",
+        "\u25b6  Physical insight (A-stability, CFL, truncation order) remains human knowledge",
     ], font_size=16)
 
-    add_text_box(slide, Inches(0.6), Inches(5.6), Inches(8.8), Inches(0.4),
-                 "Next Steps", font_size=20, color=PURPLE, bold=True)
-    add_bullet_list(slide, Inches(0.8), Inches(6.1), Inches(8.4), Inches(1.0), [
-        "\u25b6  Parallelize Phase 1 (solver \u00d7 config) via ProcessPoolExecutor/MPI",
-        "\u25b6  Expand PHYSBO search to multi-dimensional (dt + nr + t_end)",
-        "\u25b6  Heavy Perspective evaluation \u2192 concurrent.futures parallelization",
-    ], font_size=16, color=LIGHT_GRAY)
+    add_text_box(slide, Inches(0.6), Inches(5.2), Inches(8.8), Inches(0.4),
+                 "Key Conclusion", font_size=20, color=RED, bold=True)
+    add_bullet_list(slide, Inches(0.8), Inches(5.6), Inches(8.4), Inches(0.8), [
+        "The essential next step is a PhysicalInsightAgent that explains",
+        "WHY each solver is suited to each problem, connecting solver properties",
+        "(implicit/explicit, spatial order) to PDE characteristics (\u03c7 stiffness, CFL).",
+    ], font_size=16, color=WHITE)
+
+    add_text_box(slide, Inches(0.6), Inches(6.5), Inches(8.8), Inches(0.4),
+                 "Next Steps", font_size=16, color=PURPLE, bold=True)
+    add_bullet_list(slide, Inches(0.8), Inches(6.8), Inches(8.4), Inches(0.6), [
+        "\u25b6  PhysicalInsightAgent: solver property \u00d7 PDE characteristic \u2192 explanation",
+        "\u25b6  LLM integration for content-aware evaluation and natural language reasoning",
+    ], font_size=14, color=LIGHT_GRAY)
 
 
 def main():
@@ -1006,7 +1150,9 @@ def main():
     slide_14_cycle_flow(prs)
     slide_15_scoring_mechanism(prs)
     slide_16_advanced_multiagent(prs)
-    slide_17_summary(prs)
+    slide_17_advanced_results(prs)
+    slide_18_what_vs_why(prs)
+    slide_19_summary(prs)
 
     prs.save(OUTPATH)
     print(f"Saved {len(prs.slides)} slides to {OUTPATH}")

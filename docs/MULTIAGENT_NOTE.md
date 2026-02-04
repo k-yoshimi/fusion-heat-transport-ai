@@ -490,3 +490,72 @@ LLMを導入した際に最も効果を発揮する。例えば:
 
 このDebateパターンは、LLMの hallucination を相互チェックで抑制する手法として
 近年のマルチエージェント研究で注目されている。
+
+### 実行結果（1512サンプル）
+
+```bash
+python docs/analysis/advanced_multi_agent.py
+```
+
+**StatisticsAgent**: implicit_fdm が 85.5% で支配的。T_center の分散がゼロ（非情報的特徴量）。
+
+**FeatureAgent**: 最重要特徴量は `t_end` (importance=0.28)。13組の高相関ペアを検出
+（例: `energy_content` と `half_max_radius` で相関0.99）。
+
+**HypothesisAgent（3件 confirmed）**:
+1. alpha > 0.5 → 常にFDM勝利 (confidence 100%, FDM wins 99.9%)
+2. Spectral は problem_stiffness < 1.90 の時のみ勝利 (confidence 95%)
+3. Grid params が physics params より重要 (confidence 80%, Grid:10 vs Physics:3)
+
+**CriticAgent（1件）**: `t_end` のユニーク値が3つしかない → 重要度が膨張している可能性 (minor)
+
+## 10. 考察: What vs Why — 欠けている物理的洞察
+
+### 現状の問題
+
+現在のエージェント群は **What（何が起きたか）** を自動的に検出するが、
+**Why（なぜそうなるのか）** を物理的・数学的に説明する機能を持たない。
+
+| エージェント | What（自動化済み） | Why（欠けている） |
+|---|---|---|
+| ParetoAnalysis | implicit_fdm が rank #1 | なぜ? → Crank-Nicolson は A-stable |
+| Bottleneck | 速度差 792倍 | なぜ? → P2 FEM の行列組立コスト |
+| Hypothesis | α>0.5 → FDM勝利 (99.9%) | なぜ? → 非線形 χ が stiff ODE を生成 |
+| Hypothesis | Spectral が stiffness>1.9 で失敗 | なぜ? → 陽的時間進行 + CFL制限 |
+| Evaluation | P001 score = 3.38 | なぜ3.38? → キーワードマッチ（内容理解ではない） |
+
+### 必要な物理的説明
+
+本来、以下のような因果関係の説明が自動生成されるべきである:
+
+1. **Implicit FDM が #1 の理由**: Crank-Nicolson 法は放物型PDEに対してA-stable。
+   非線形拡散率 χ を暗黙的に扱うためCFL制約がない。
+
+2. **Spectral の不安定性の理由**: 陽的時間進行を使用しており、
+   Δt ≤ C·(Δr)²/χ_max のCFL条件に従う。高α → 大きな χ → 許容 Δt が縮小。
+
+3. **Compact4 が高α で有利な理由**: 空間4次精度 O(Δr⁴) vs 標準FDM の 2次精度 O(Δr²)。
+   急峻な勾配（高α）で打ち切り誤差の差が顕在化。
+
+4. **P2 FEM が遅い理由**: 2次要素で自由度が 2N+1。各タイムステップで
+   スパース行列の組立＋求解が必要。バンド構造の利用が不十分。
+
+### 欠けているエージェント: PhysicalInsightAgent
+
+**ソルバーの数学的性質** × **PDEの物理的特性** → **なぜ適しているかの説明** を生成する
+エージェントが存在しない。このエージェントは以下を入力として:
+
+- ソルバーの性質: 陰的/陽的、空間精度次数、基底関数の種類
+- PDEの特性: χ の剛性、勾配の急峻さ、CFL条件
+- ベンチマーク結果: L2誤差、安定性率、実行時間
+
+以下を出力すべきである:
+
+- **因果関係の説明**: 「このソルバーがこの問題設定で優れている理由は...」
+- **失敗の診断**: 「このソルバーがこの設定で不安定な原因は...」
+- **改善の方向性**: 数学的根拠に基づく具体的な改善策
+
+現在このような説明は `latex_report_agent.py` にテンプレート文として
+ハードコードされているが、データから自動導出されたものではない。
+LLMの統合により、ベンチマーク結果と数値解析の知識を組み合わせた
+物理的洞察の自動生成が可能になると考えられる。
