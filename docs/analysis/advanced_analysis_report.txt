@@ -1,0 +1,30 @@
+======================================================================
+MULTI-AGENT SYNTHESIS REPORT
+======================================================================
+
+## Key Findings
+
+### Hypothesis Confirmed
+  - Alpha > 0.5 always leads to FDM selection
+
+## Confirmed Hypotheses
+
+  [Confidence: 100%] Alpha > 0.5 always leads to FDM selection
+    Evidence: FDM wins 99.9% for alpha > 0.5
+  [Confidence: 95%] Spectral solver only wins when problem_stiffness < 1.90
+    Evidence: Max stiffness for spectral wins: 1.9022
+  [Confidence: 80%] Grid parameters (nr, dt, t_end) are more important than physics parameters
+    Evidence: Grid importance: 10, Physics importance: 3
+
+## Caveats and Limitations
+
+  [minor] Feature 't_end' has only 3 unique values - importance may be inflated
+
+## Recommendations
+
+  1. Use implicit_fdm as the default solver
+  2. Consider removing ML selector for this IC (T0 = 1 - r^2)
+  3. Improve spectral solver stability for threshold-based chi
+  4. Add more diverse initial conditions to training data
+
+======================================================================
