@@ -1097,7 +1097,7 @@ class EvaluationAgent(ImprovementAgent):
         for i, result in enumerate(results):
             result.ranking = i + 1
             # Set recommendation based on ranking
-            if result.overall_score >= 4.0:
+            if result.overall_score >= 3.5:
                 result.recommendation = "approve"
             elif result.overall_score >= 3.0:
                 result.recommendation = "consider"
