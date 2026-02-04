@@ -13,9 +13,17 @@ class CosineSpectral(SolverBase):
 
     Time stepping: implicit linear diffusion (chi=0.1 baseline) in spectral space,
     explicit nonlinear correction in physical space.
+
+    Stability:
+        - CFL constraint: dt <= 0.5 * dr^2 / max_chi_nl
+        - Recommended max_alpha: 0.5 (explicit nonlinear part limits stability)
     """
 
     name = "spectral_cosine"
+
+    # CFL coefficient for explicit nonlinear correction
+    cfl_coefficient = 0.5
+    max_alpha_recommended = 0.5
 
     def __init__(self, n_modes: int = 16):
         self.n_modes = n_modes

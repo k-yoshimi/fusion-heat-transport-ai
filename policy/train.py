@@ -22,6 +22,14 @@ FEATURE_NAMES = [
     "half_max_radius", "profile_centroid", "gradient_slope", "profile_width",
 ]
 
+# Physics-only features (13 total, excludes dt, nr, t_end)
+PHYSICS_FEATURE_NAMES = [
+    "alpha",
+    "max_abs_gradient", "energy_content", "max_chi", "max_laplacian",
+    "T_center", "gradient_sharpness", "chi_ratio", "problem_stiffness",
+    "half_max_radius", "profile_centroid", "gradient_slope", "profile_width",
+]
+
 
 def _make_initial(r, profile_name="parabolic", profile_params=None):
     """Create initial temperature profile using the profile factory."""
@@ -203,6 +211,50 @@ def train_model(
     return tree
 
 
+def train_physics_model(
+    data_path: str = "data/training_data.csv",
+    output_path: str = "data/physics_model.npz",
+    max_depth: int = 5,
+):
+    """Train physics-only decision tree model.
+
+    Uses only physics features (excludes dt, nr, t_end) for solver selection.
+    This enables two-stage selection: physics -> solver, then optimizer -> params.
+
+    Args:
+        data_path: Path to training data CSV (full features)
+        output_path: Path to save physics-only model
+        max_depth: Maximum tree depth
+
+    Returns:
+        Trained decision tree
+    """
+    # Load CSV
+    with open(data_path) as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    if not rows:
+        raise ValueError(f"No training data in {data_path}")
+
+    # Extract physics features only
+    X = np.array([[float(row[f]) for f in PHYSICS_FEATURE_NAMES] for row in rows])
+    y = np.array([row["best_solver"] for row in rows])
+
+    tree = NumpyDecisionTree(max_depth=max_depth)
+    tree.fit(X, y)
+
+    # Training accuracy
+    preds = tree.predict(X)
+    acc = np.mean(preds == y)
+    print(f"Physics model training accuracy: {acc:.1%} ({int(acc * len(y))}/{len(y)})")
+
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    tree.save(output_path)
+    print(f"Physics model saved to {output_path}")
+    return tree
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Train ML solver selector")
@@ -211,12 +263,19 @@ def main():
     parser.add_argument("--max-depth", type=int, default=5)
     parser.add_argument("--generate", action="store_true",
                         help="Generate training data first")
+    parser.add_argument("--physics-only", action="store_true",
+                        help="Train physics-only model (excludes dt, nr, t_end)")
+    parser.add_argument("--physics-model", default="data/physics_model.npz",
+                        help="Path for physics-only model")
     args = parser.parse_args()
 
     if args.generate:
         generate_training_data(args.data)
 
-    train_model(args.data, args.model, args.max_depth)
+    if args.physics_only:
+        train_physics_model(args.data, args.physics_model, args.max_depth)
+    else:
+        train_model(args.data, args.model, args.max_depth)
 
 
 if __name__ == "__main__":

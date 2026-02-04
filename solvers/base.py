@@ -1,7 +1,11 @@
 """Abstract base class for heat transport solvers."""
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 import numpy as np
+
+if TYPE_CHECKING:
+    from policy.stability import StabilityConstraints
 
 
 class SolverBase(ABC):
@@ -11,9 +15,32 @@ class SolverBase(ABC):
     where χ(|T'|) = (|T'| - 0.5)^α + 0.1  if |T'| > 0.5, else 0.1
 
     BCs: Neumann ∂T/∂r=0 at r=0, Dirichlet T=0 at r=1.
+
+    Attributes:
+        name: Unique identifier for the solver
+        stability: Optional stability constraints (loaded from registry if not set)
     """
 
     name: str = "base"
+    _stability: "StabilityConstraints" = None
+
+    @property
+    def stability(self) -> "StabilityConstraints":
+        """Get stability constraints for this solver."""
+        if self._stability is None:
+            from policy.stability import get_stability
+            try:
+                self._stability = get_stability(self.name)
+            except KeyError:
+                # Return default constraints for unknown solvers
+                from policy.stability import StabilityConstraints
+                self._stability = StabilityConstraints()
+        return self._stability
+
+    @stability.setter
+    def stability(self, value: "StabilityConstraints"):
+        """Set stability constraints for this solver."""
+        self._stability = value
 
     @abstractmethod
     def solve(

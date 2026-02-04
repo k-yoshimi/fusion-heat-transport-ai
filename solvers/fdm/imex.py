@@ -14,9 +14,16 @@ class IMEXFDM(SolverBase):
 
     Uses adaptive chi_base to ensure stability of the explicit part.
     Based on ImplicitFDM structure with split operator approach.
+
+    Stability:
+        - CFL constraint: dt <= 0.4 * dr^2 / max_chi_nl for explicit part
+        - Adaptive chi_base can handle any alpha by increasing implicit treatment
     """
 
     name = "imex_fdm"
+
+    # CFL coefficient for explicit nonlinear correction
+    cfl_coefficient = 0.4
 
     def __init__(self, chi_base: float = 0.1, adaptive_base: bool = True):
         """Initialize IMEX solver.

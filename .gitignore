@@ -7,3 +7,9 @@ build/
 .pytest_cache/
 data/
 *.npz
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
